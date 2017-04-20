@@ -4,29 +4,33 @@ import java.io.*;
 import java.nio.file.Paths;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
-        OutputStream os = new BufferedOutputStream(new FileOutputStream("/home/juanplopes/Downloads/queue"));
-        InputStream is = new BufferedInputStream(new FileInputStream("/home/juanplopes/Downloads/queue"));
+    public static void main(String[] args) throws Exception {
 
-        for(int i=1; i<=100; i++) {
-            os.write(i);
-            os.flush();
+        long start = System.nanoTime();
 
-            System.out.println(is.read());
+        ByteQueue queue = new ByteQueue(Paths.get("/home/juanplopes/Downloads/queue"), 128 * 1024 * 1024, 256);
+
+        String s = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+
+        for (int i = 0; i < 1000000; i++) {
+            //push(queue, s);
+            String popped = pop(queue);
+            if (!s.equals(popped))
+                throw new Exception("epa! " + popped);
         }
-//
-//
-//        System.out.println(is.re);
-//
-//
-//        IndexFile file = new IndexFile(Paths.get("/home/juanplopes/Downloads/test"));
-////        file.setReadFile(1);
-////        file.setReadPosition(2);
-////        file.setWriteFile(3);
-////        file.setWritePosition(4);
-////        file.setCount(5);
-//
-//        System.out.println(String.format("%d %d %d %d %d",
-//                file.getReadFile(), file.getReadPosition(), file.getWriteFile(), file.getWritePosition(), file.getCount()));
+
+        System.out.println((System.nanoTime() - start) / 1.0e9);
+    }
+
+    private static void push(ByteQueue queue, String s) throws IOException {
+        byte[] bytes = s.getBytes();
+        queue.push(bytes, 0, bytes.length);
+    }
+
+    private static String pop(ByteQueue queue) throws IOException {
+        int size = queue.peekNextSize();
+        byte[] buffer = new byte[size];
+        queue.pop(buffer, 0);
+        return new String(buffer);
     }
 }
