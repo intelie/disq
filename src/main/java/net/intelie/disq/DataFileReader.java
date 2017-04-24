@@ -1,26 +1,26 @@
 package net.intelie.disq;
 
 import java.io.*;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class DataFileReader implements Closeable {
     private final DataInputStream stream;
-    private final FileInputStream fos;
+    private final FileInputStream fis;
     private long position;
-    private boolean eof = false;
 
     public DataFileReader(Path file, long position) throws IOException {
-        fos = new FileInputStream(file.toFile());
-        stream = new DataInputStream(new BufferedInputStream(fos));
+        fis = new FileInputStream(file.toFile());
+        stream = new DataInputStream(new BufferedInputStream(fis));
         stream.skip(position);
         this.position = position;
     }
 
     public boolean eof() throws IOException {
-        return position >= fos.getChannel().size();
+        return position >= size();
+    }
+
+    public long size() throws IOException {
+        return fis.getChannel().size();
     }
 
     public int peekNextSize() throws IOException {

@@ -8,27 +8,28 @@ public class DataFileWriter implements Closeable {
     private final FileOutputStream fos;
     private final File file;
 
-    public DataFileWriter(Path file) throws IOException {
+    public DataFileWriter(Path file, long position) throws IOException {
         this.file = file.toFile();
+        setLength(this.file, position);
         fos = new FileOutputStream(this.file, true);
         stream = new DataOutputStream(new BufferedOutputStream(fos));
+    }
+
+    private void setLength(File file, long size) throws IOException {
+        RandomAccessFile rand = new RandomAccessFile(file, "rw");
+        rand.setLength(size);
+        rand.close();
     }
 
     public long size() throws IOException {
         return fos.getChannel().size();
     }
 
-    public void write(byte[] bytes, int offset, int count) throws IOException {
-        extendFileSizeAtomically(count);
+    public int write(byte[] bytes, int offset, int count) throws IOException {
         stream.writeInt(count);
         stream.write(bytes, offset, count);
         stream.flush();
-    }
-
-    private void extendFileSizeAtomically(int count) throws IOException {
-        RandomAccessFile rand = new RandomAccessFile(file, "rw");
-        rand.setLength(rand.getChannel().size() + 4 + count);
-        rand.close();
+        return count + 4;
     }
 
     @Override

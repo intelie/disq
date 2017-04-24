@@ -1,21 +1,20 @@
 package net.intelie.disq;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class ByteQueue {
+public class ByteQueue implements Closeable {
     private final Path directory;
     private final IndexFile index;
     private final long dataFileLimit;
-    private final int maxDataFiles;
     private DataFileReader read;
     private DataFileWriter writer;
 
-    public ByteQueue(Path directory, long dataFileLimit, int maxDataFiles) throws IOException {
+    public ByteQueue(Path directory, long dataFileLimit) throws IOException {
         this.directory = directory;
         this.dataFileLimit = dataFileLimit;
-        this.maxDataFiles = maxDataFiles;
 
         Files.createDirectories(directory);
 
@@ -34,7 +33,11 @@ public class ByteQueue {
     }
 
     private DataFileWriter openWriter() throws IOException {
-        return new DataFileWriter(makeDataPath(index.getWriteFile()));
+        return new DataFileWriter(makeDataPath(index.getWriteFile()), index.getWritePosition());
+    }
+
+    public synchronized long bytes() {
+        return index.getBytes();
     }
 
     public synchronized long count() {
@@ -46,44 +49,61 @@ public class ByteQueue {
     }
 
     public synchronized int pop(byte[] buffer, int start) throws IOException {
-        if (checkReadEOF()) {
-            index.flush();
+        if (checkReadEOF())
             return -1;
-        }
 
         int read = this.read.read(buffer, start);
-        if (!checkReadEOF())
-            index.advancePosition(read);
-        index.addCount(-1);
+        index.addReadCount(read);
         index.flush();
+
+        checkReadEOF();
         return read;
     }
 
-    private boolean checkReadEOF() throws IOException {
-        while (read.eof()) {
-            if (index.getReadFile() != index.getWriteFile()) {
-                read.close();
-                int currentFile = index.getReadFile();
-                index.advanceReadFile();
-                Files.delete(makeDataPath(currentFile));
-                read = openReader();
-            } else {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public synchronized void push(byte[] buffer, int start, int count) throws IOException {
-        if (writer.size() >= dataFileLimit) {
-            writer.close();
-            index.advanceWriteFile();
-            writer = openWriter();
-        }
-
-        writer.write(buffer, start, count);
-        index.addCount(1);
+        checkWriteEOF();
+        int written = writer.write(buffer, start, count);
+        index.addWriteCount(written);
         index.flush();
     }
 
+    private boolean checkReadEOF() throws IOException {
+        while (read.eof() && index.getReadPosition() > 0)
+            deleteOldestFile();
+        return read.eof();
+    }
+
+    public synchronized void deleteOldestFile() throws IOException {
+        int currentFile = index.getReadFile();
+
+        if (currentFile == index.getWriteFile())
+            advanceWriteFile();
+
+        index.advanceReadFile(read.size());
+
+        read.close();
+        read = openReader();
+
+        index.flush();
+
+        Files.delete(makeDataPath(currentFile));
+    }
+
+    private void checkWriteEOF() throws IOException {
+        if (writer.size() >= dataFileLimit)
+            advanceWriteFile();
+    }
+
+    private void advanceWriteFile() throws IOException {
+        writer.close();
+        index.advanceWriteFile();
+        writer = openWriter();
+    }
+
+    @Override
+    public void close() throws IOException {
+        read.close();
+        writer.close();
+        index.close();
+    }
 }
