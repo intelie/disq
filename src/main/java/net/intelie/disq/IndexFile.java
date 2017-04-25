@@ -20,7 +20,6 @@ public class IndexFile implements Closeable {
     private long bytes;
     private int[] fileCounts;
 
-
     public IndexFile(Path file) throws IOException {
         this.fileCounts = new int[MAX_FILES];
         this.randomWrite = new RandomAccessFile(file.toFile(), "rw");
@@ -36,6 +35,11 @@ public class IndexFile implements Closeable {
                     fileCounts[i] = stream.readInt();
             }
         }
+    }
+
+    public boolean isInUse(int file) {
+        return readFile <= writeFile && readFile <= file && file <= writeFile ||
+                readFile >= writeFile && (readFile <= file || file <= writeFile);
     }
 
     public void flush() throws IOException {
@@ -59,6 +63,7 @@ public class IndexFile implements Closeable {
 
     public int advanceReadFile(long oldBytes) {
         int oldCount = fileCounts[readFile];
+        fileCounts[readFile] = 0;
         count -= oldCount;
         bytes -= oldBytes;
         readFile++;
@@ -104,6 +109,13 @@ public class IndexFile implements Closeable {
         this.fileCounts[readFile] -= 1;
     }
 
+    public void clear() {
+        readPosition = writePosition = count = bytes = 0;
+        readFile = writeFile = 0;
+        for (int i = 0; i < MAX_FILES; i++)
+            fileCounts[i] = 0;
+    }
+
     public long getWritePosition() {
         return writePosition;
     }
@@ -111,5 +123,9 @@ public class IndexFile implements Closeable {
     @Override
     public void close() throws IOException {
         randomWrite.close();
+    }
+
+    public int getFileCount(int file) {
+        return fileCounts[file];
     }
 }
