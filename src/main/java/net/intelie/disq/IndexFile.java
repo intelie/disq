@@ -39,7 +39,7 @@ public class IndexFile implements Closeable {
 
     public boolean isInUse(int file) {
         return readFile <= writeFile && readFile <= file && file <= writeFile ||
-                readFile >= writeFile && (readFile <= file || file <= writeFile);
+                readFile > writeFile && (readFile <= file || file <= writeFile);
     }
 
     public void flush() throws IOException {
@@ -127,5 +127,14 @@ public class IndexFile implements Closeable {
 
     public int getFileCount(int file) {
         return fileCounts[file];
+    }
+
+    public boolean fixCounts(long totalCount, long totalBytes) {
+        if (totalBytes != bytes || totalCount != count) {
+            bytes = totalBytes;
+            count = totalCount;
+            return true;
+        }
+        return false;
     }
 }

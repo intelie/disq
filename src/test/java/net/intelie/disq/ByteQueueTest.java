@@ -1,7 +1,6 @@
 package net.intelie.disq;
 
 import com.google.common.base.Strings;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -45,7 +44,69 @@ public class ByteQueueTest {
             assertThat(pop(queue)).isEqualTo(s);
 
         assertThat(temp.getRoot().list()).containsOnly("index");
+        assertThat(queue.bytes()).isEqualTo(0);
+    }
 
+    @Test
+    public void testAbleToRecoverOnDirectoryDelete() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 5; i++)
+            push(queue, s);
+
+        for (String file : temp.getRoot().list()) {
+            new File(temp.getRoot(), file).delete();
+        }
+
+        temp.getRoot().delete();
+
+        push(queue, s);
+        assertThat(pop(queue)).isEqualTo(s);
+        assertThat(queue.bytes()).isEqualTo(0);
+        assertThat(queue.count()).isEqualTo(0);
+    }
+
+    @Test
+    public void testDeleteAllFiles() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 5; i++)
+            push(queue, s);
+
+        for (int i = 0; i < 5; i++)
+            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(516);
+
+        queue.clear();
+
+        assertThat(queue.bytes()).isEqualTo(0);
+        assertThat(queue.count()).isEqualTo(0);
+        assertThat(temp.getRoot().list()).containsOnly("index", "data00");
+    }
+
+    @Test
+    public void testAbleToRecoverOnDataFilesDelete() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 5; i++)
+            push(queue, s);
+        push(queue, "aaa");
+
+        for (String file : temp.getRoot().list()) {
+            if (file.startsWith("data"))
+                new File(temp.getRoot(), file).delete();
+        }
+
+        push(queue, s);
+        assertThat(pop(queue)).isEqualTo(s);
+        assertThat(queue.bytes()).isEqualTo(0);
+        assertThat(queue.count()).isEqualTo(0);
+        assertThat(temp.getRoot().list()).containsOnly("index", "data06");
     }
 
     private void push(ByteQueue queue, String s) throws IOException {

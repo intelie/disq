@@ -7,32 +7,28 @@ import java.nio.file.Path;
 
 public class ByteQueue implements Closeable {
     private final Path directory;
-    private final IndexFile index;
     private final long dataFileLimit;
+    private final Lenient lenient;
+
+    private IndexFile index;
     private DataFileReader reader;
     private DataFileWriter writer;
 
     public ByteQueue(Path directory, long dataFileLimit) throws IOException {
         this.directory = directory;
         this.dataFileLimit = dataFileLimit;
+        this.lenient = new Lenient(this);
 
-        Files.createDirectories(directory);
+        reopen();
+    }
 
-        this.index = new IndexFile(directory.resolve("index"));
+    public synchronized void reopen() throws IOException {
+        close();
+        Files.createDirectories(this.directory);
+        this.index = new IndexFile(this.directory.resolve("index"));
         this.writer = openWriter();
-        this.reader = openReader();
-    }
-
-    private Path makeDataPath(int index) {
-        return directory.resolve("data" + String.format("%02x", index));
-    }
-
-    public DataFileReader openReader() throws IOException {
-        return new DataFileReader(makeDataPath(index.getReadFile()), index.getReadPosition());
-    }
-
-    private DataFileWriter openWriter() throws IOException {
-        return new DataFileWriter(makeDataPath(index.getWriteFile()), index.getWritePosition());
+        this.reader = null;
+        gc();
     }
 
     public synchronized long bytes() {
@@ -44,82 +40,121 @@ public class ByteQueue implements Closeable {
     }
 
     public synchronized int peekNextSize() throws IOException {
-        return reader.peekNextSize();
+        return lenient.perform(() -> reader().peekNextSize());
     }
 
     public synchronized void clear() throws IOException {
-        index.clear();
-        index.flush();
+        lenient.perform(() -> {
+            index.clear();
+            index.flush();
+            reopen();
+        });
     }
 
     public synchronized int pop(byte[] buffer, int start) throws IOException {
-        if (checkReadEOF())
-            return -1;
+        return lenient.perform(() -> {
+            if (checkReadEOF())
+                return -1;
 
-        int read = ensureReader().read(buffer, start);
-        index.addReadCount(read);
-        index.flush();
+            int read = reader().read(buffer, start);
+            index.addReadCount(read);
+            index.flush();
 
-        checkReadEOF();
-        return read;
-    }
-
-    private boolean checkReadEOF() throws IOException {
-        while (index.getReadFile() != index.getWriteFile() && ensureReader().eof())
-            deleteOldestFile();
-        return index.getCount() == 0;
-    }
-
-    private DataFileReader ensureReader() throws IOException {
-        return reader != null ? reader : (reader = openReader());
+            checkReadEOF();
+            return read;
+        });
     }
 
     public synchronized boolean deleteOldestFile() throws IOException {
-        int currentFile = index.getReadFile();
+        return lenient.perform(() -> {
+            int currentFile = index.getReadFile();
 
-        if (currentFile == index.getWriteFile())
-            return false;
+            if (currentFile == index.getWriteFile())
+                return false;
 
-        index.advanceReadFile(reader.size());
+            index.advanceReadFile(reader().size());
 
-        reader.close();
-        index.flush();
-        reader = null;
+            reader.close();
+            index.flush();
+            reader = null;
+            tryDeleteFile(currentFile);
 
-        tryDeleteFile(currentFile);
-
-        return true;
+            return true;
+        });
     }
 
 
     public synchronized void push(byte[] buffer, int start, int count) throws IOException {
-        checkWriteEOF();
+        lenient.perform(() -> {
+            checkWriteEOF();
 
-        int written = ensureWriter().write(buffer, start, count);
-        index.addWriteCount(written);
-        index.flush();
+            int written = writer().write(buffer, start, count);
+            index.addWriteCount(written);
+            index.flush();
 
-        checkWriteEOF();
+            checkWriteEOF();
+        });
+    }
+
+    @Override
+    public void close() throws IOException {
+        lenient.safeClose(reader);
+        lenient.safeClose(writer);
+        lenient.safeClose(index);
+    }
+
+    private boolean checkReadEOF() throws IOException {
+        while (index.getReadFile() != index.getWriteFile() && reader().eof())
+            deleteOldestFile();
+        return index.getCount() == 0;
+    }
+
+    private DataFileReader reader() throws IOException {
+        return reader != null ? reader : (reader = openReader());
     }
 
     private void checkWriteEOF() throws IOException {
-        ensureWriter();
-        if (writer.size() >= dataFileLimit)
+        if (writer().size() >= dataFileLimit)
             advanceWriteFile();
     }
 
-    private DataFileWriter ensureWriter() throws IOException {
+    private DataFileWriter writer() throws IOException {
         return writer != null ? writer : (writer = openWriter());
     }
 
     private void advanceWriteFile() throws IOException {
-        writer.close();
+        writer().close();
         index.advanceWriteFile();
         index.flush();
         writer = null;
     }
 
-    private void gc(boolean deleteAll) {
+    private void gc() throws IOException {
+        Path file = makeDataPath(index.getReadFile());
+        boolean shouldFlush = false;
+        while (!Files.exists(file) && index.getReadFile() != index.getWriteFile()) {
+            index.advanceReadFile(0);
+            file = makeDataPath(index.getReadFile());
+            shouldFlush = true;
+        }
+        long totalBytes = 0;
+        long totalCount = 0;
+        for (int i = 0; i < IndexFile.MAX_FILES; i++) {
+            Path path = makeDataPath(i);
+            if (Files.exists(path)) {
+                if (!index.isInUse(i)) {
+                    tryDeleteFile(i);
+                } else {
+                    totalBytes += Files.size(path);
+                    totalCount += index.getFileCount(i);
+                }
+            }
+        }
+
+        shouldFlush |= index.fixCounts(totalCount, totalBytes);
+
+        if (shouldFlush)
+            index.flush();
 
     }
 
@@ -131,10 +166,17 @@ public class ByteQueue implements Closeable {
         }
     }
 
-    @Override
-    public void close() throws IOException {
-        reader.close();
-        writer.close();
-        index.close();
+    private Path makeDataPath(int index) {
+        return directory.resolve("data" + String.format("%02x", index));
     }
+
+    private DataFileReader openReader() throws IOException {
+        return new DataFileReader(makeDataPath(index.getReadFile()), index.getReadPosition());
+    }
+
+    private DataFileWriter openWriter() throws IOException {
+        Files.createDirectories(directory);
+        return new DataFileWriter(makeDataPath(index.getWriteFile()), index.getWritePosition());
+    }
+
 }
