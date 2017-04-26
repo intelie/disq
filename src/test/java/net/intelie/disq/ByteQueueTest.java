@@ -1,6 +1,7 @@
 package net.intelie.disq;
 
 import com.google.common.base.Strings;
+import org.assertj.core.condition.Negative;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -9,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
 public class ByteQueueTest {
     @Rule
@@ -63,8 +65,14 @@ public class ByteQueueTest {
         temp.getRoot().delete();
 
         push(queue, s);
-        assertThat(pop(queue)).isEqualTo(s);
-        assertThat(queue.bytes()).isEqualTo(0);
+        try {
+            pop(queue);
+            fail("must throw");
+        } catch (NegativeArraySizeException e) {
+        }
+        push(queue, "abc");
+        assertThat(pop(queue)).isEqualTo("abc");
+        assertThat(queue.bytes()).isEqualTo(7);
         assertThat(queue.count()).isEqualTo(0);
     }
 
@@ -103,8 +111,14 @@ public class ByteQueueTest {
         }
 
         push(queue, s);
-        assertThat(pop(queue)).isEqualTo(s);
-        assertThat(queue.bytes()).isEqualTo(0);
+        try {
+            pop(queue);
+            fail("must throw");
+        } catch (NegativeArraySizeException e) {
+        }
+        push(queue, "abc");
+        assertThat(pop(queue)).isEqualTo("abc");
+        assertThat(queue.bytes()).isEqualTo(7);
         assertThat(queue.count()).isEqualTo(0);
         assertThat(temp.getRoot().list()).containsOnly("index", "data06");
     }

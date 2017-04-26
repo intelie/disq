@@ -9,43 +9,18 @@ public class Lenient {
         this.queue = queue;
     }
 
-    public int perform(IntOp supplier) throws IOException {
+    public int perform(Op supplier) throws IOException {
         try {
             return supplier.call();
         } catch (Exception e) {
             e.printStackTrace();
             queue.reopen();
-            return supplier.call();
-        }
-    }
-
-    public long perform(LongOp supplier) throws IOException {
-        try {
-            return supplier.call();
-        } catch (Exception e) {
-            e.printStackTrace();
-            queue.reopen();
-            return supplier.call();
-        }
-    }
-
-    public boolean perform(BooleanOp supplier) throws IOException {
-        try {
-            return supplier.call();
-        } catch (Exception e) {
-            e.printStackTrace();
-            queue.reopen();
-            return supplier.call();
-        }
-    }
-
-    public void perform(VoidOp supplier) throws IOException {
-        try {
-            supplier.call();
-        } catch (Exception e) {
-            e.printStackTrace();
-            queue.reopen();
-            supplier.call();
+            try {
+                return supplier.call();
+            } catch (Exception e2) {
+                queue.reopen();
+                throw e2;
+            }
         }
     }
 
@@ -57,20 +32,8 @@ public class Lenient {
         }
     }
 
-    public interface IntOp {
+    public interface Op {
         int call() throws IOException;
-    }
-
-    public interface LongOp {
-        long call() throws IOException;
-    }
-
-    public interface BooleanOp {
-        boolean call() throws IOException;
-    }
-
-    public interface VoidOp {
-        void call() throws IOException;
     }
 
 

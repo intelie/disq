@@ -40,59 +40,78 @@ public class ByteQueue implements Closeable {
     }
 
     public synchronized int peekNextSize() throws IOException {
-        return lenient.perform(() -> reader().peekNextSize());
-    }
-
-    public synchronized void clear() throws IOException {
-        lenient.perform(() -> {
-            index.clear();
-            index.flush();
-            reopen();
+        return lenient.perform(new Lenient.Op() {
+            @Override
+            public int call() throws IOException {
+                return reader().peekNextSize();
+            }
         });
     }
 
-    public synchronized int pop(byte[] buffer, int start) throws IOException {
-        return lenient.perform(() -> {
-            if (checkReadEOF())
-                return -1;
+    public synchronized void clear() throws IOException {
+        lenient.perform(new Lenient.Op() {
+            @Override
+            public int call() throws IOException {
+                index.clear();
+                index.flush();
+                reopen();
+                return 0;
+            }
+        });
+    }
 
-            int read = reader().read(buffer, start);
-            index.addReadCount(read);
-            index.flush();
+    public synchronized int pop(final byte[] buffer, final int start) throws IOException {
+        return lenient.perform(new Lenient.Op() {
+            @Override
+            public int call() throws IOException {
+                if (checkReadEOF())
+                    return -1;
 
-            checkReadEOF();
-            return read;
+                int read = reader().read(buffer, start);
+                index.addReadCount(read);
+                index.flush();
+
+                checkReadEOF();
+                return read;
+            }
         });
     }
 
     public synchronized boolean deleteOldestFile() throws IOException {
-        return lenient.perform(() -> {
-            int currentFile = index.getReadFile();
+        return lenient.perform(new Lenient.Op() {
+            @Override
+            public int call() throws IOException {
+                int currentFile = index.getReadFile();
 
-            if (currentFile == index.getWriteFile())
-                return false;
+                if (currentFile == index.getWriteFile())
+                    return 0;
 
-            index.advanceReadFile(reader().size());
+                index.advanceReadFile(reader().size());
 
-            reader.close();
-            index.flush();
-            reader = null;
-            tryDeleteFile(currentFile);
+                reader.close();
+                index.flush();
+                reader = null;
+                tryDeleteFile(currentFile);
 
-            return true;
-        });
+                return 1;
+            }
+        }) != 0;
     }
 
 
-    public synchronized void push(byte[] buffer, int start, int count) throws IOException {
-        lenient.perform(() -> {
-            checkWriteEOF();
+    public synchronized void push(final byte[] buffer, final int start, final int count) throws IOException {
+        lenient.perform(new Lenient.Op() {
+            @Override
+            public int call() throws IOException {
+                checkWriteEOF();
 
-            int written = writer().write(buffer, start, count);
-            index.addWriteCount(written);
-            index.flush();
+                int written = writer().write(buffer, start, count);
+                index.addWriteCount(written);
+                index.flush();
 
-            checkWriteEOF();
+                checkWriteEOF();
+                return 0;
+            }
         });
     }
 
