@@ -1,10 +1,10 @@
 package net.intelie.disq;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class DataFileWriter implements Closeable {
+    public static final int OVERHEAD = 4;
     private final DataOutputStream stream;
     private final FileOutputStream fos;
     private final File file;
@@ -26,11 +26,11 @@ public class DataFileWriter implements Closeable {
         return fos.getChannel().size();
     }
 
-    public int write(byte[] bytes, int offset, int count) throws IOException {
-        stream.writeInt(count);
-        stream.write(bytes, offset, count);
+    public int write(Buffer buffer) throws IOException {
+        stream.writeInt(buffer.count());
+        stream.write(buffer.buf(), 0, buffer.count());
         stream.flush();
-        return count + 4;
+        return buffer.count() + OVERHEAD;
     }
 
     @Override

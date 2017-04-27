@@ -60,19 +60,19 @@ public class ByteQueue implements Closeable {
         });
     }
 
-    public synchronized int pop(final byte[] buffer, final int start) throws IOException {
+    public synchronized int pop(Buffer buffer) throws IOException {
         return lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
                 if (checkReadEOF())
                     return -1;
 
-                int read = reader().read(buffer, start);
+                int read = reader().read(buffer);
                 index.addReadCount(read);
                 index.flush();
 
                 checkReadEOF();
-                return read;
+                return buffer.count();
             }
         });
     }
@@ -99,13 +99,13 @@ public class ByteQueue implements Closeable {
     }
 
 
-    public synchronized void push(final byte[] buffer, final int start, final int count) throws IOException {
+    public synchronized void push(Buffer buffer) throws IOException {
         lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
                 checkWriteEOF();
 
-                int written = writer().write(buffer, start, count);
+                int written = writer().write(buffer);
                 index.addWriteCount(written);
                 index.flush();
 

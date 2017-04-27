@@ -31,13 +31,17 @@ public class DataFileReader implements Closeable {
         return answer;
     }
 
-    public int read(byte[] bytes, int offset) throws IOException {
+    public int read(Buffer buffer) throws IOException {
         if (eof()) return -1;
         int size = stream.readInt();
-        int total = 4;
+        int total = DataFileWriter.OVERHEAD;
+
+        buffer.setCount(size, false);
+
+        int offset = 0;
 
         while (size > 0) {
-            int read = stream.read(bytes, offset, size);
+            int read = stream.read(buffer.buf(), offset, size);
             size -= read;
             offset += read;
             total += read;

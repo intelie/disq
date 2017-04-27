@@ -12,12 +12,12 @@ public class Lenient {
     public int perform(Op supplier) throws IOException {
         try {
             return supplier.call();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
             queue.reopen();
             try {
                 return supplier.call();
-            } catch (Exception e2) {
+            } catch (Throwable e2) {
                 queue.reopen();
                 throw e2;
             }
@@ -26,9 +26,10 @@ public class Lenient {
 
     public void safeClose(AutoCloseable closeable) {
         try {
-            closeable.close();
-        } catch (Exception ignored) {
-            //ignoring close exception
+            if (closeable != null)
+                closeable.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

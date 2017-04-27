@@ -1,7 +1,6 @@
 package net.intelie.disq;
 
 import com.google.common.base.Strings;
-import org.assertj.core.condition.Negative;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -10,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
 
 public class ByteQueueTest {
     @Rule
@@ -24,6 +22,48 @@ public class ByteQueueTest {
             push(queue, "test" + i);
             assertThat(pop(queue)).isEqualTo("test" + i);
         }
+
+    }
+
+    @Test
+    public void testPopOnly() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 3; i++)
+            push(queue, s);
+
+        Buffer buffer = new Buffer();
+
+        assertThat(queue.pop(buffer)).isEqualTo(512);
+        assertThat(queue.pop(buffer)).isEqualTo(512);
+        assertThat(queue.pop(buffer)).isEqualTo(512);
+        assertThat(queue.pop(buffer)).isEqualTo(-1);
+    }
+
+    @Test
+    public void testDeleteOldestFile() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 4; i++)
+            push(queue, s);
+        push(queue, "abc");
+
+        for (int i = 4; i > 0; i--) {
+            assertBytesAndCount(queue, 516 * i + 7, i + 1);
+            assertThat(queue.deleteOldestFile()).isTrue();
+        }
+        assertBytesAndCount(queue, 7, 1);
+        assertThat(queue.deleteOldestFile()).isFalse();
+        assertBytesAndCount(queue, 7, 1);
+    }
+
+    private void assertBytesAndCount(ByteQueue queue, int bytes, int count) {
+        assertThat(queue.bytes()).isEqualTo(bytes);
+        assertThat(queue.count()).isEqualTo(count);
     }
 
     @Test
@@ -65,15 +105,10 @@ public class ByteQueueTest {
         temp.getRoot().delete();
 
         push(queue, s);
-        try {
-            pop(queue);
-            fail("must throw");
-        } catch (NegativeArraySizeException e) {
-        }
+        assertThat(pop(queue)).isNull();
         push(queue, "abc");
         assertThat(pop(queue)).isEqualTo("abc");
-        assertThat(queue.bytes()).isEqualTo(7);
-        assertThat(queue.count()).isEqualTo(0);
+        assertBytesAndCount(queue, 7, 0);
     }
 
     @Test
@@ -90,8 +125,7 @@ public class ByteQueueTest {
 
         queue.clear();
 
-        assertThat(queue.bytes()).isEqualTo(0);
-        assertThat(queue.count()).isEqualTo(0);
+        assertBytesAndCount(queue, 0, 0);
         assertThat(temp.getRoot().list()).containsOnly("index", "data00");
     }
 
@@ -111,26 +145,21 @@ public class ByteQueueTest {
         }
 
         push(queue, s);
-        try {
-            pop(queue);
-            fail("must throw");
-        } catch (NegativeArraySizeException e) {
-        }
+        assertThat(pop(queue)).isNull();
         push(queue, "abc");
         assertThat(pop(queue)).isEqualTo("abc");
-        assertThat(queue.bytes()).isEqualTo(7);
-        assertThat(queue.count()).isEqualTo(0);
+        assertBytesAndCount(queue, 7, 0);
         assertThat(temp.getRoot().list()).containsOnly("index", "data06");
     }
 
     private void push(ByteQueue queue, String s) throws IOException {
-        byte[] bytes = s.getBytes();
-        queue.push(bytes, 0, bytes.length);
+        queue.push(new Buffer(s.getBytes()));
     }
 
     private String pop(ByteQueue queue) throws IOException {
-        byte[] bytes = new byte[queue.peekNextSize()];
-        int read = queue.pop(bytes, 0);
-        return new String(bytes);
+        Buffer buffer = new Buffer();
+        int read = queue.pop(buffer);
+        if (read < 0) return null;
+        return new String(buffer.buf(), 0, buffer.count());
     }
 }
