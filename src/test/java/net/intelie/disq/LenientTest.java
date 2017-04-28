@@ -5,6 +5,8 @@ import org.mockito.InOrder;
 import org.mockito.internal.stubbing.answers.Returns;
 import org.mockito.internal.stubbing.answers.ThrowsException;
 
+import java.io.Closeable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
@@ -47,5 +49,14 @@ public class LenientTest {
         orderly.verify(queue).reopen();
         orderly.verify(op).call();
         orderly.verify(queue).reopen();
+    }
+
+    @Test
+    public void testExceptionOnClose() throws Exception {
+        Closeable closeable = mock(Closeable.class);
+        doThrow(new Error("abc")).when(closeable).close();
+
+        new Lenient(null).safeClose(closeable);
+        verify(closeable).close();
     }
 }

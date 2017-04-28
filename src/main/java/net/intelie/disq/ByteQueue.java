@@ -1,12 +1,12 @@
 package net.intelie.disq;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class ByteQueue implements Closeable {
+public class ByteQueue implements AutoCloseable {
     private final Path directory;
+    private final long maxSize;
     private final long dataFileLimit;
     private final Lenient lenient;
 
@@ -14,9 +14,10 @@ public class ByteQueue implements Closeable {
     private DataFileReader reader;
     private DataFileWriter writer;
 
-    public ByteQueue(Path directory, long dataFileLimit) throws IOException {
+    public ByteQueue(Path directory, long maxSize) throws IOException {
         this.directory = directory;
-        this.dataFileLimit = dataFileLimit;
+        this.maxSize = Math.max(Math.min(maxSize, IndexFile.MAX_QUEUE_SIZE), IndexFile.MIN_QUEUE_SIZE);
+        this.dataFileLimit = Math.max(512, this.maxSize / IndexFile.MAX_FILES + (this.maxSize % IndexFile.MAX_FILES > 0 ? 1 : 0));
         this.lenient = new Lenient(this);
 
         reopen();
@@ -31,24 +32,23 @@ public class ByteQueue implements Closeable {
         gc();
     }
 
+    private synchronized void ensureOpen() {
+        if (index == null)
+            throw new IllegalStateException("This queue is already closed.");
+    }
+
     public synchronized long bytes() {
+        ensureOpen();
         return index.getBytes();
     }
 
     public synchronized long count() {
+        ensureOpen();
         return index.getCount();
     }
 
-    public synchronized int peekNextSize() throws IOException {
-        return lenient.perform(new Lenient.Op() {
-            @Override
-            public int call() throws IOException {
-                return reader().peekNextSize();
-            }
-        });
-    }
-
     public synchronized void clear() throws IOException {
+        ensureOpen();
         lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
@@ -61,6 +61,7 @@ public class ByteQueue implements Closeable {
     }
 
     public synchronized int pop(Buffer buffer) throws IOException {
+        ensureOpen();
         return lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
@@ -77,33 +78,25 @@ public class ByteQueue implements Closeable {
         });
     }
 
-    public synchronized boolean deleteOldestFile() throws IOException {
-        return lenient.perform(new Lenient.Op() {
-            @Override
-            public int call() throws IOException {
-                int currentFile = index.getReadFile();
+    private boolean deleteOldestFile() throws IOException {
+        int currentFile = index.getReadFile();
+        index.advanceReadFile(reader().size());
+        reader.close();
+        index.flush();
+        reader = null;
+        tryDeleteFile(currentFile);
 
-                if (currentFile == index.getWriteFile())
-                    return 0;
-
-                index.advanceReadFile(reader().size());
-
-                reader.close();
-                index.flush();
-                reader = null;
-                tryDeleteFile(currentFile);
-
-                return 1;
-            }
-        }) != 0;
+        return true;
     }
 
 
     public synchronized void push(Buffer buffer) throws IOException {
+        ensureOpen();
         lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
                 checkWriteEOF();
+                checkFutureQueueOverflow(buffer);
 
                 int written = writer().write(buffer);
                 index.addWriteCount(written);
@@ -115,15 +108,24 @@ public class ByteQueue implements Closeable {
         });
     }
 
-    @Override
-    public void close() throws IOException {
+    private void checkFutureQueueOverflow(Buffer buffer) throws IOException {
+        while (!index.sameFileReadWrite() && bytes() + buffer.count() > maxSize)
+            deleteOldestFile();
+    }
+
+    public synchronized void close() {
         lenient.safeClose(reader);
+        reader = null;
+
         lenient.safeClose(writer);
+        writer = null;
+
         lenient.safeClose(index);
+        index = null;
     }
 
     private boolean checkReadEOF() throws IOException {
-        while (index.getReadFile() != index.getWriteFile() && reader().eof())
+        while (!index.sameFileReadWrite() && reader().eof())
             deleteOldestFile();
         return index.getCount() == 0;
     }
@@ -194,6 +196,8 @@ public class ByteQueue implements Closeable {
     }
 
     private DataFileWriter openWriter() throws IOException {
+        if (index.getWriteFile() == index.getReadFile() && !index.sameFileReadWrite())
+            deleteOldestFile();
         Files.createDirectories(directory);
         return new DataFileWriter(makeDataPath(index.getWriteFile()), index.getWritePosition());
     }

@@ -2,28 +2,32 @@ package net.intelie.disq;
 
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.NoSuchElementException;
 
 public class Main {
     static String s = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
 
+    private static ObjectQueue<String> open() throws IOException {
+        return new ObjectQueue<>(new ByteQueue(Paths.get("/home/juanplopes/Downloads/queue"), 1024 * 1024 * 1024), new JavaSerializer<>());
+    }
+
     public static void main(String[] args) throws Exception {
-        try (ByteQueue queue = new ByteQueue(Paths.get("/home/juanplopes/Downloads/queue"), 128 * 1024 * 1024)) {
+        try (ObjectQueue<String> queue = open()) {
             queue.clear();
         }
         allWrites(1000000);
-        allReads(100000);
+        allReads(1000000);
     }
 
     private static void allReads(int n) throws IOException {
         long start = System.nanoTime();
 
-        try (ByteQueue queue = new ByteQueue(Paths.get("/home/juanplopes/Downloads/queue"), 128 * 1024 * 1024)) {
+        try (ObjectQueue<String> queue = open()) {
             System.out.println(queue.count() + " " + queue.bytes());
 
             for (int i = 0; i < n; i++) {
-                if (!s.equals(pop(queue)))
-                    throw new RuntimeException("abc");
+                String q = queue.pop();
+                if (!s.equals(q))
+                    throw new RuntimeException("abc: " + q);
 
             }
 
@@ -36,11 +40,11 @@ public class Main {
     private static void allWrites(int n) throws IOException {
         long start = System.nanoTime();
 
-        try (ByteQueue queue = new ByteQueue(Paths.get("/home/juanplopes/Downloads/queue"), 128 * 1024 * 1024)) {
+        try (ObjectQueue<String> queue = open()) {
             System.out.println(queue.count() + " " + queue.bytes());
 
             for (int i = 0; i < n; i++) {
-                push(queue, s);
+                queue.push(s);
             }
 
             System.out.println(queue.count() + " " + queue.bytes());
@@ -48,16 +52,4 @@ public class Main {
         System.out.println((System.nanoTime() - start) / 1.0e9);
     }
 
-    private static void push(ByteQueue queue, String s) throws IOException {
-        queue.push(new Buffer(s.getBytes()));
-    }
-
-    private static String pop(ByteQueue queue) throws IOException {
-        int size = queue.peekNextSize();
-        if (size < 0)
-            throw new NoSuchElementException("The queue is empty");
-        Buffer buffer = new Buffer();
-        queue.pop(buffer);
-        return new String(buffer.buf());
-    }
 }

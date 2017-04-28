@@ -37,10 +37,10 @@ public class IndexFileTest {
         assertThat(indexPath.length()).isEqualTo(512);
 
         DataInputStream data = new DataInputStream(new FileInputStream(indexPath));
-        assertThat(data.readInt()).isEqualTo(1);
-        assertThat(data.readInt()).isEqualTo(2);
-        assertThat(data.readLong()).isEqualTo(50);
-        assertThat(data.readLong()).isEqualTo(82);
+        assertThat(data.readShort()).isEqualTo((short)1);
+        assertThat(data.readShort()).isEqualTo((short)2);
+        assertThat(data.readInt()).isEqualTo(50);
+        assertThat(data.readInt()).isEqualTo(82);
         assertThat(data.readLong()).isEqualTo(1);
         assertThat(data.readLong()).isEqualTo(83);
 

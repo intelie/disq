@@ -17,7 +17,7 @@ public class DataFileWriter implements Closeable {
     }
 
     private void setLength(File file, long size) throws IOException {
-        RandomAccessFile rand = new RandomAccessFile(file, "rw");
+        RandomAccessFile rand = new RandomAccessFile(file, "rws");
         rand.setLength(size);
         rand.close();
     }

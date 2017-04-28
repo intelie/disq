@@ -28,7 +28,7 @@ public class Lenient {
         try {
             if (closeable != null)
                 closeable.close();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
     }

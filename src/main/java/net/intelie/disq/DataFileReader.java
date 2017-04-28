@@ -10,9 +10,14 @@ public class DataFileReader implements Closeable {
 
     public DataFileReader(Path file, long position) throws IOException {
         fis = new FileInputStream(file.toFile());
+        skipToPosition(position);
         stream = new DataInputStream(new BufferedInputStream(fis));
-        stream.skip(position);
         this.position = position;
+    }
+
+    private void skipToPosition(long position) throws IOException {
+        while(position > 0)
+            position -= fis.skip(position);
     }
 
     public boolean eof() throws IOException {
@@ -21,14 +26,6 @@ public class DataFileReader implements Closeable {
 
     public long size() throws IOException {
         return fis.getChannel().size();
-    }
-
-    public int peekNextSize() throws IOException {
-        if (eof()) return -1;
-        stream.mark(4);
-        int answer = stream.readInt();
-        stream.reset();
-        return answer;
     }
 
     public int read(Buffer buffer) throws IOException {

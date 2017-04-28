@@ -7,12 +7,38 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ByteQueueTest {
     @Rule
     public TemporaryFolder temp = new TemporaryFolder();
+
+    @Test
+    public void testPushOnClosedQueue() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+        queue.close();
+
+        assertThatThrownBy(() -> {
+            push(queue, "abc");
+        }).isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
+    }
+
+    @Test
+    public void testExceptionOnClose() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+        for (String file : temp.getRoot().list()) {
+            new File(temp.getRoot(), file).delete();
+        }
+        temp.getRoot().delete();
+        queue.close();
+
+        assertThatThrownBy(() -> {
+            push(queue, "abc");
+        }).isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
+    }
 
     @Test
     public void testSimplePushsAndPops() throws Exception {
@@ -22,8 +48,72 @@ public class ByteQueueTest {
             push(queue, "test" + i);
             assertThat(pop(queue)).isEqualTo("test" + i);
         }
-
     }
+
+    @Test
+    public void testPushAndCloseThenOpenAndPop() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+
+        for (int i = 0; i < 20; i++)
+            push(queue, "test" + i);
+        for (int i = 0; i < 10; i++)
+            assertThat(pop(queue)).isEqualTo("test" + i);
+        queue.close();
+        queue.reopen();
+        for (int i = 10; i < 20; i++)
+            assertThat(pop(queue)).isEqualTo("test" + i);
+
+        assertThat(queue.count()).isEqualTo(0);
+    }
+
+    @Test
+    public void testLimitByMaxSize() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+
+        String s = Strings.repeat("a", 508);
+
+        for (int i = 0; i < 121; i++)
+            push(queue, s);
+
+        assertThat(queue.count()).isEqualTo(121);
+        assertThat(queue.bytes()).isEqualTo(512 * 121);
+
+        push(queue, s);
+
+        assertThat(queue.count()).isEqualTo(121);
+        assertThat(queue.bytes()).isEqualTo(512 * 121);
+    }
+
+    @Test
+    public void testLimitByMaxSizeOnlyTwoFiles() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+
+        String s = Strings.repeat("a", 512 * 100);
+
+        push(queue, s);
+        assertThat(queue.count()).isEqualTo(1);
+        assertThat(queue.bytes()).isEqualTo(4 + 512*100);
+
+        push(queue, s);
+        assertThat(queue.count()).isEqualTo(1);
+        assertThat(queue.bytes()).isEqualTo(4 + 512*100);
+    }
+
+    @Test
+    public void testLimitByMaxSizeOnlyOneFile() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+
+        String s = Strings.repeat("a", 512 * 100);
+
+        push(queue, s);
+        assertThat(queue.count()).isEqualTo(1);
+        assertThat(queue.bytes()).isEqualTo(4 + 512*100);
+
+        push(queue, s);
+        assertThat(queue.count()).isEqualTo(1);
+        assertThat(queue.bytes()).isEqualTo(4 + 512*100);
+    }
+
 
     @Test
     public void testPopOnly() throws Exception {
@@ -42,25 +132,6 @@ public class ByteQueueTest {
         assertThat(queue.pop(buffer)).isEqualTo(-1);
     }
 
-    @Test
-    public void testDeleteOldestFile() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
-
-        String s = Strings.repeat("a", 512);
-
-        for (int i = 0; i < 4; i++)
-            push(queue, s);
-        push(queue, "abc");
-
-        for (int i = 4; i > 0; i--) {
-            assertBytesAndCount(queue, 516 * i + 7, i + 1);
-            assertThat(queue.deleteOldestFile()).isTrue();
-        }
-        assertBytesAndCount(queue, 7, 1);
-        assertThat(queue.deleteOldestFile()).isFalse();
-        assertBytesAndCount(queue, 7, 1);
-    }
-
     private void assertBytesAndCount(ByteQueue queue, int bytes, int count) {
         assertThat(queue.bytes()).isEqualTo(bytes);
         assertThat(queue.count()).isEqualTo(count);
@@ -74,6 +145,7 @@ public class ByteQueueTest {
 
         for (int i = 0; i < 5; i++)
             push(queue, s);
+
 
         assertThat(temp.getRoot().list()).containsOnly(
                 "data00", "data01", "data02", "data03", "data04", "index"
@@ -150,6 +222,28 @@ public class ByteQueueTest {
         assertThat(pop(queue)).isEqualTo("abc");
         assertBytesAndCount(queue, 7, 0);
         assertThat(temp.getRoot().list()).containsOnly("index", "data06");
+    }
+
+    @Test
+    public void testAbleToRecoverOnDataFilesMadeReadOnly() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 5; i++)
+            push(queue, s);
+        push(queue, "aaa");
+
+        temp.getRoot().setWritable(false);
+
+        for(int i=0; i<5; i++)
+            assertThat(pop(queue)).isEqualTo(s);
+        assertThat(pop(queue)).isEqualTo("aaa");
+        assertThat(temp.getRoot().list()).containsOnly("data00", "data01", "data02", "data03", "data04", "index", "data05");
+
+        temp.getRoot().setWritable(true);
+        queue.reopen();
+        assertThat(temp.getRoot().list()).containsOnly("index", "data05");
     }
 
     private void push(ByteQueue queue, String s) throws IOException {

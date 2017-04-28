@@ -4,18 +4,21 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.Random;
 
 public class IndexFile implements Closeable {
-    public static final int MAX_FILES = 118;
-    public static final int EXPECTED_SIZE = 2 * 4 + 4 * 8 + MAX_FILES * 4;
+    public static final short MAX_FILES = 121;
+    public static final short TWICE_MAX_FILES = 2 * MAX_FILES;
+    //we use this to allow identifying when read = write because they are in fact same file
+    //or we just have a full queue
+
+    public static final int EXPECTED_SIZE = 2 * 2 + 2 * 4 + 2 * 8 + MAX_FILES * 4;
+    public static final long MIN_QUEUE_SIZE = MAX_FILES * 512;
     public static final long MAX_QUEUE_SIZE = MAX_FILES * (long) Integer.MAX_VALUE;
 
     private final RandomAccessFile randomWrite;
     private final ByteBuffer buffer = ByteBuffer.allocate(EXPECTED_SIZE);
     private int readFile, writeFile;
-    private long readPosition, writePosition;
+    private int readPosition, writePosition;
     private long count;
     private long bytes;
     private int[] fileCounts;
@@ -25,10 +28,10 @@ public class IndexFile implements Closeable {
         this.randomWrite = new RandomAccessFile(file.toFile(), "rw");
         if (Files.exists(file) && Files.size(file) == EXPECTED_SIZE) {
             try (DataInputStream stream = new DataInputStream(new FileInputStream(file.toFile()))) {
-                readFile = stream.readInt();
-                writeFile = stream.readInt();
-                readPosition = stream.readLong();
-                writePosition = stream.readLong();
+                readFile = stream.readShort();
+                writeFile = stream.readShort();
+                readPosition = stream.readInt();
+                writePosition = stream.readInt();
                 count = stream.readLong();
                 bytes = stream.readLong();
                 for (int i = 0; i < MAX_FILES; i++)
@@ -38,16 +41,21 @@ public class IndexFile implements Closeable {
     }
 
     public boolean isInUse(int file) {
-        return readFile <= writeFile && readFile <= file && file <= writeFile ||
-                readFile > writeFile && (readFile <= file || file <= writeFile);
+        int readFile = getReadFile();
+        int writeFile = getWriteFile();
+        boolean same = sameFileReadWrite();
+
+        return same && readFile == file ||
+                !same && readFile <= writeFile && readFile <= file && file <= writeFile ||
+                !same && readFile >= writeFile && (readFile <= file || file <= writeFile);
     }
 
     public void flush() throws IOException {
         buffer.position(0);
-        buffer.putInt(readFile);
-        buffer.putInt(writeFile);
-        buffer.putLong(readPosition);
-        buffer.putLong(writePosition);
+        buffer.putShort((short) readFile);
+        buffer.putShort((short) writeFile);
+        buffer.putInt(readPosition);
+        buffer.putInt(writePosition);
         buffer.putLong(count);
         buffer.putLong(bytes);
         for (int i = 0; i < MAX_FILES; i++)
@@ -58,23 +66,27 @@ public class IndexFile implements Closeable {
     }
 
     public int getReadFile() {
-        return readFile;
+        return readFile % MAX_FILES;
+    }
+
+    public boolean sameFileReadWrite() {
+        return readFile == writeFile;
     }
 
     public int advanceReadFile(long oldBytes) {
         int oldCount = fileCounts[readFile];
-        fileCounts[readFile] = 0;
+        fileCounts[getReadFile()] = 0;
         count -= oldCount;
         bytes -= oldBytes;
         readFile++;
-        readFile %= MAX_FILES;
+        readFile %= TWICE_MAX_FILES;
         readPosition = 0;
         return readFile;
     }
 
     public int advanceWriteFile() {
         writeFile++;
-        writeFile %= MAX_FILES;
+        writeFile %= TWICE_MAX_FILES;
         writePosition = 0;
         return writeFile;
     }
@@ -84,7 +96,7 @@ public class IndexFile implements Closeable {
     }
 
     public int getWriteFile() {
-        return writeFile;
+        return writeFile % MAX_FILES;
     }
 
     public long getCount() {
@@ -99,19 +111,20 @@ public class IndexFile implements Closeable {
         this.count += 1;
         this.bytes += bytes;
         this.writePosition += bytes;
-        this.fileCounts[writeFile] += 1;
+        this.fileCounts[getWriteFile()] += 1;
     }
 
     public void addReadCount(int bytes) {
         this.count -= 1;
         //does not decrement this.bytes, only when the file is deleted
         this.readPosition += bytes;
-        this.fileCounts[readFile] -= 1;
+        this.fileCounts[getReadFile()] -= 1;
     }
 
     public void clear() {
-        readPosition = writePosition = count = bytes = 0;
         readFile = writeFile = 0;
+        readPosition = writePosition = 0;
+        count = bytes = 0;
         for (int i = 0; i < MAX_FILES; i++)
             fileCounts[i] = 0;
     }
@@ -122,6 +135,7 @@ public class IndexFile implements Closeable {
 
     @Override
     public void close() throws IOException {
+        flush();
         randomWrite.close();
     }
 
