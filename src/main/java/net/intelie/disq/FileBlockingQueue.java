@@ -5,8 +5,6 @@ import java.nio.file.Path;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -16,9 +14,9 @@ class FileBlockingQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> 
     private final long maxSize;
 
     public FileBlockingQueue(Serializer<T> serializer, Path path, long maxSize) throws IOException {
-        maxSize = maxSize >= 0 ? maxSize : IndexFile.MAX_QUEUE_SIZE;
+        maxSize = maxSize >= 0 ? maxSize : StateFile.MAX_QUEUE_SIZE;
         this.serializer = serializer;
-        this.queue = new ByteQueue(path, maxSize / IndexFile.MAX_FILES + (maxSize % IndexFile.MAX_FILES > 0 ? 1 : 0));
+        this.queue = new ByteQueue(path, maxSize / StateFile.MAX_FILES + (maxSize % StateFile.MAX_FILES > 0 ? 1 : 0));
         this.maxSize = maxSize;
 
     }

@@ -148,7 +148,7 @@ public class ByteQueueTest {
 
 
         assertThat(temp.getRoot().list()).containsOnly(
-                "data00", "data01", "data02", "data03", "data04", "index"
+                "data00", "data01", "data02", "data03", "data04", "state"
         );
 
         for (int i = 0; i < 5; i++)
@@ -157,7 +157,7 @@ public class ByteQueueTest {
         for (int i = 0; i < 5; i++)
             assertThat(pop(queue)).isEqualTo(s);
 
-        assertThat(temp.getRoot().list()).containsOnly("index");
+        assertThat(temp.getRoot().list()).containsOnly("state");
         assertThat(queue.bytes()).isEqualTo(0);
     }
 
@@ -198,7 +198,7 @@ public class ByteQueueTest {
         queue.clear();
 
         assertBytesAndCount(queue, 0, 0);
-        assertThat(temp.getRoot().list()).containsOnly("index", "data00");
+        assertThat(temp.getRoot().list()).containsOnly("state", "data00");
     }
 
     @Test
@@ -221,7 +221,7 @@ public class ByteQueueTest {
         push(queue, "abc");
         assertThat(pop(queue)).isEqualTo("abc");
         assertBytesAndCount(queue, 7, 0);
-        assertThat(temp.getRoot().list()).containsOnly("index", "data06");
+        assertThat(temp.getRoot().list()).containsOnly("state", "data06");
     }
 
     @Test
@@ -239,11 +239,11 @@ public class ByteQueueTest {
         for(int i=0; i<5; i++)
             assertThat(pop(queue)).isEqualTo(s);
         assertThat(pop(queue)).isEqualTo("aaa");
-        assertThat(temp.getRoot().list()).containsOnly("data00", "data01", "data02", "data03", "data04", "index", "data05");
+        assertThat(temp.getRoot().list()).containsOnly("data00", "data01", "data02", "data03", "data04", "state", "data05");
 
         temp.getRoot().setWritable(true);
         queue.reopen();
-        assertThat(temp.getRoot().list()).containsOnly("index", "data05");
+        assertThat(temp.getRoot().list()).containsOnly("state", "data05");
     }
 
     private void push(ByteQueue queue, String s) throws IOException {

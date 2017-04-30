@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class IndexFile implements Closeable {
+public class StateFile implements Closeable {
     public static final short MAX_FILES = 121;
     public static final short TWICE_MAX_FILES = 2 * MAX_FILES;
     //we use this to allow identifying when read = write because they are in fact same file
@@ -23,7 +23,7 @@ public class IndexFile implements Closeable {
     private long bytes;
     private int[] fileCounts;
 
-    public IndexFile(Path file) throws IOException {
+    public StateFile(Path file) throws IOException {
         this.fileCounts = new int[MAX_FILES];
         this.randomWrite = new RandomAccessFile(file.toFile(), "rw");
         if (Files.exists(file) && Files.size(file) == EXPECTED_SIZE) {

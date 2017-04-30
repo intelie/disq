@@ -10,14 +10,14 @@ public class ByteQueue implements AutoCloseable {
     private final long dataFileLimit;
     private final Lenient lenient;
 
-    private IndexFile index;
+    private StateFile state;
     private DataFileReader reader;
     private DataFileWriter writer;
 
     public ByteQueue(Path directory, long maxSize) throws IOException {
         this.directory = directory;
-        this.maxSize = Math.max(Math.min(maxSize, IndexFile.MAX_QUEUE_SIZE), IndexFile.MIN_QUEUE_SIZE);
-        this.dataFileLimit = Math.max(512, this.maxSize / IndexFile.MAX_FILES + (this.maxSize % IndexFile.MAX_FILES > 0 ? 1 : 0));
+        this.maxSize = Math.max(Math.min(maxSize, StateFile.MAX_QUEUE_SIZE), StateFile.MIN_QUEUE_SIZE);
+        this.dataFileLimit = Math.max(512, this.maxSize / StateFile.MAX_FILES + (this.maxSize % StateFile.MAX_FILES > 0 ? 1 : 0));
         this.lenient = new Lenient(this);
 
         reopen();
@@ -26,25 +26,25 @@ public class ByteQueue implements AutoCloseable {
     public synchronized void reopen() throws IOException {
         close();
         Files.createDirectories(this.directory);
-        this.index = new IndexFile(this.directory.resolve("index"));
+        this.state = new StateFile(this.directory.resolve("state"));
         this.writer = openWriter();
         this.reader = null;
         gc();
     }
 
     private synchronized void ensureOpen() {
-        if (index == null)
+        if (state == null)
             throw new IllegalStateException("This queue is already closed.");
     }
 
     public synchronized long bytes() {
         ensureOpen();
-        return index.getBytes();
+        return state.getBytes();
     }
 
     public synchronized long count() {
         ensureOpen();
-        return index.getCount();
+        return state.getCount();
     }
 
     public synchronized void clear() throws IOException {
@@ -52,8 +52,8 @@ public class ByteQueue implements AutoCloseable {
         lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
-                index.clear();
-                index.flush();
+                state.clear();
+                state.flush();
                 reopen();
                 return 0;
             }
@@ -69,8 +69,8 @@ public class ByteQueue implements AutoCloseable {
                     return -1;
 
                 int read = reader().read(buffer);
-                index.addReadCount(read);
-                index.flush();
+                state.addReadCount(read);
+                state.flush();
 
                 checkReadEOF();
                 return buffer.count();
@@ -79,10 +79,10 @@ public class ByteQueue implements AutoCloseable {
     }
 
     private boolean deleteOldestFile() throws IOException {
-        int currentFile = index.getReadFile();
-        index.advanceReadFile(reader().size());
+        int currentFile = state.getReadFile();
+        state.advanceReadFile(reader().size());
         reader.close();
-        index.flush();
+        state.flush();
         reader = null;
         tryDeleteFile(currentFile);
 
@@ -99,8 +99,8 @@ public class ByteQueue implements AutoCloseable {
                 checkFutureQueueOverflow(buffer);
 
                 int written = writer().write(buffer);
-                index.addWriteCount(written);
-                index.flush();
+                state.addWriteCount(written);
+                state.flush();
 
                 checkWriteEOF();
                 return 0;
@@ -109,7 +109,7 @@ public class ByteQueue implements AutoCloseable {
     }
 
     private void checkFutureQueueOverflow(Buffer buffer) throws IOException {
-        while (!index.sameFileReadWrite() && bytes() + buffer.count() > maxSize)
+        while (!state.sameFileReadWrite() && bytes() + buffer.count() > maxSize)
             deleteOldestFile();
     }
 
@@ -120,14 +120,14 @@ public class ByteQueue implements AutoCloseable {
         lenient.safeClose(writer);
         writer = null;
 
-        lenient.safeClose(index);
-        index = null;
+        lenient.safeClose(state);
+        state = null;
     }
 
     private boolean checkReadEOF() throws IOException {
-        while (!index.sameFileReadWrite() && reader().eof())
+        while (!state.sameFileReadWrite() && reader().eof())
             deleteOldestFile();
-        return index.getCount() == 0;
+        return state.getCount() == 0;
     }
 
     private DataFileReader reader() throws IOException {
@@ -145,37 +145,37 @@ public class ByteQueue implements AutoCloseable {
 
     private void advanceWriteFile() throws IOException {
         writer().close();
-        index.advanceWriteFile();
-        index.flush();
+        state.advanceWriteFile();
+        state.flush();
         writer = null;
     }
 
     private void gc() throws IOException {
-        Path file = makeDataPath(index.getReadFile());
+        Path file = makeDataPath(state.getReadFile());
         boolean shouldFlush = false;
-        while (!Files.exists(file) && index.getReadFile() != index.getWriteFile()) {
-            index.advanceReadFile(0);
-            file = makeDataPath(index.getReadFile());
+        while (!Files.exists(file) && state.getReadFile() != state.getWriteFile()) {
+            state.advanceReadFile(0);
+            file = makeDataPath(state.getReadFile());
             shouldFlush = true;
         }
         long totalBytes = 0;
         long totalCount = 0;
-        for (int i = 0; i < IndexFile.MAX_FILES; i++) {
+        for (int i = 0; i < StateFile.MAX_FILES; i++) {
             Path path = makeDataPath(i);
             if (Files.exists(path)) {
-                if (!index.isInUse(i)) {
+                if (!state.isInUse(i)) {
                     tryDeleteFile(i);
                 } else {
                     totalBytes += Files.size(path);
-                    totalCount += index.getFileCount(i);
+                    totalCount += state.getFileCount(i);
                 }
             }
         }
 
-        shouldFlush |= index.fixCounts(totalCount, totalBytes);
+        shouldFlush |= state.fixCounts(totalCount, totalBytes);
 
         if (shouldFlush)
-            index.flush();
+            state.flush();
 
     }
 
@@ -187,19 +187,19 @@ public class ByteQueue implements AutoCloseable {
         }
     }
 
-    private Path makeDataPath(int index) {
-        return directory.resolve("data" + String.format("%02x", index));
+    private Path makeDataPath(int state) {
+        return directory.resolve("data" + String.format("%02x", state));
     }
 
     private DataFileReader openReader() throws IOException {
-        return new DataFileReader(makeDataPath(index.getReadFile()), index.getReadPosition());
+        return new DataFileReader(makeDataPath(state.getReadFile()), state.getReadPosition());
     }
 
     private DataFileWriter openWriter() throws IOException {
-        if (index.getWriteFile() == index.getReadFile() && !index.sameFileReadWrite())
+        if (state.getWriteFile() == state.getReadFile() && !state.sameFileReadWrite())
             deleteOldestFile();
         Files.createDirectories(directory);
-        return new DataFileWriter(makeDataPath(index.getWriteFile()), index.getWritePosition());
+        return new DataFileWriter(makeDataPath(state.getWriteFile()), state.getWritePosition());
     }
 
 }
