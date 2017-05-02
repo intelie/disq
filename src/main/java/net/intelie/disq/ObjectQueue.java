@@ -2,7 +2,6 @@ package net.intelie.disq;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.nio.file.Path;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ObjectQueue<T> implements AutoCloseable {
@@ -32,6 +31,10 @@ public class ObjectQueue<T> implements AutoCloseable {
         queue.clear();
     }
 
+    public void flush() throws IOException {
+        queue.flush();
+    }
+
     public T pop() throws IOException {
         return doWithBuffer(buffer -> {
             if (queue.pop(buffer) < 0)
@@ -40,11 +43,10 @@ public class ObjectQueue<T> implements AutoCloseable {
         });
     }
 
-    public void push(T obj) throws IOException {
-        doWithBuffer(buffer -> {
+    public boolean push(T obj) throws IOException {
+        return doWithBuffer(buffer -> {
             serializer.serialize(buffer.write(), obj);
-            queue.push(buffer);
-            return null;
+            return queue.push(buffer);
         });
     }
 

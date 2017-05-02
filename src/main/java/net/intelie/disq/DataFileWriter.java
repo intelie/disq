@@ -22,10 +22,6 @@ public class DataFileWriter implements Closeable {
         rand.close();
     }
 
-    public long size() throws IOException {
-        return fos.getChannel().size();
-    }
-
     public int write(Buffer buffer) throws IOException {
         stream.writeInt(buffer.count());
         stream.write(buffer.buf(), 0, buffer.count());

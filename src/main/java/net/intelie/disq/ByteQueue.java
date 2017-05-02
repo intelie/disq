@@ -10,15 +10,27 @@ public class ByteQueue implements AutoCloseable {
     private final long dataFileLimit;
     private final Lenient lenient;
 
+    private final boolean flushOnRead;
+    private final boolean flushOnWrite;
+    private final boolean deleteOldestOnOverflow;
+
     private StateFile state;
     private DataFileReader reader;
     private DataFileWriter writer;
 
     public ByteQueue(Path directory, long maxSize) throws IOException {
+        this(directory, maxSize, true, true, true);
+    }
+
+    public ByteQueue(Path directory, long maxSize, boolean flushOnPop, boolean flushOnPush, boolean deleteOldestOnOverflow) throws IOException {
         this.directory = directory;
         this.maxSize = Math.max(Math.min(maxSize, StateFile.MAX_QUEUE_SIZE), StateFile.MIN_QUEUE_SIZE);
         this.dataFileLimit = Math.max(512, this.maxSize / StateFile.MAX_FILES + (this.maxSize % StateFile.MAX_FILES > 0 ? 1 : 0));
         this.lenient = new Lenient(this);
+
+        this.flushOnRead = flushOnPop;
+        this.flushOnWrite = flushOnPush;
+        this.deleteOldestOnOverflow = deleteOldestOnOverflow;
 
         reopen();
     }
@@ -70,7 +82,8 @@ public class ByteQueue implements AutoCloseable {
 
                 int read = reader().read(buffer);
                 state.addReadCount(read);
-                state.flush();
+                if (flushOnRead)
+                    state.flush();
 
                 checkReadEOF();
                 return buffer.count();
@@ -90,27 +103,38 @@ public class ByteQueue implements AutoCloseable {
     }
 
 
-    public synchronized void push(Buffer buffer) throws IOException {
+    public synchronized boolean push(Buffer buffer) throws IOException {
         ensureOpen();
-        lenient.perform(new Lenient.Op() {
+        return lenient.perform(new Lenient.Op() {
             @Override
             public int call() throws IOException {
                 checkWriteEOF();
-                checkFutureQueueOverflow(buffer);
+                if (checkFutureQueueOverflow(buffer))
+                    return 0;
 
                 int written = writer().write(buffer);
                 state.addWriteCount(written);
-                state.flush();
+                if (flushOnWrite)
+                    state.flush();
 
                 checkWriteEOF();
-                return 0;
+                return 1;
             }
-        });
+        }) != 0;
     }
 
-    private void checkFutureQueueOverflow(Buffer buffer) throws IOException {
-        while (!state.sameFileReadWrite() && bytes() + buffer.count() > maxSize)
-            deleteOldestFile();
+    private boolean checkFutureQueueOverflow(Buffer buffer) throws IOException {
+        if (deleteOldestOnOverflow) {
+            while (!state.sameFileReadWrite() && willOverflow(buffer))
+                deleteOldestFile();
+            return false;
+        } else {
+            return willOverflow(buffer);
+        }
+    }
+
+    public void flush() throws IOException {
+        state.flush();
     }
 
     public synchronized void close() {
@@ -124,6 +148,10 @@ public class ByteQueue implements AutoCloseable {
         state = null;
     }
 
+    private boolean willOverflow(Buffer buffer) {
+        return bytes() + buffer.count() + DataFileWriter.OVERHEAD > maxSize;
+    }
+
     private boolean checkReadEOF() throws IOException {
         while (!state.sameFileReadWrite() && reader().eof())
             deleteOldestFile();
@@ -135,7 +163,7 @@ public class ByteQueue implements AutoCloseable {
     }
 
     private void checkWriteEOF() throws IOException {
-        if (writer().size() >= dataFileLimit)
+        if (state.getWritePosition() >= dataFileLimit)
             advanceWriteFile();
     }
 
@@ -196,10 +224,7 @@ public class ByteQueue implements AutoCloseable {
     }
 
     private DataFileWriter openWriter() throws IOException {
-        if (state.getWriteFile() == state.getReadFile() && !state.sameFileReadWrite())
-            deleteOldestFile();
         Files.createDirectories(directory);
         return new DataFileWriter(makeDataPath(state.getWriteFile()), state.getWritePosition());
     }
-
 }

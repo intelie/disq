@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,7 +27,7 @@ public class BufferTest {
         stream.write('a');
         assertThat(buffer.count()).isEqualTo(513);
         assertThat(buffer.currentCapacity()).isEqualTo(1024);
-        assertThat(buffer.toArray()).isEqualTo((s+"aa").getBytes());
+        assertThat(buffer.toArray()).isEqualTo((s + "aa").getBytes());
     }
 
     @Test
@@ -110,13 +111,17 @@ public class BufferTest {
     public void testReadBytes() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        OutputStream writeB = buffer.write();
+        PrintStream stream = new PrintStream(writeB);
         stream.print("012");
+        stream.flush();
+        writeB.write(0xC8);
 
         InputStream read = buffer.read();
         assertThat(read.read()).isEqualTo('0');
         assertThat(read.read()).isEqualTo('1');
         assertThat(read.read()).isEqualTo('2');
+        assertThat(read.read()).isEqualTo(200);
         assertThat(read.read()).isEqualTo(-1);
 
     }

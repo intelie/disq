@@ -114,7 +114,7 @@ public class Buffer {
         public int read() throws IOException {
             if (position + 1 > count)
                 return -1;
-            return buf[position++];
+            return buf[position++] & 0xFF;
         }
 
         @Override
