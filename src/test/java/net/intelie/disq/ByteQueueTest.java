@@ -80,8 +80,8 @@ public class ByteQueueTest {
 
     private void assertStateFile(int readFile, int writeFile, int readPosition, int writePosition, int count, int bytes, int c1, int c2, int c3) throws IOException {
         DataInputStream data = new DataInputStream(new FileInputStream(new File(temp.getRoot(), "state")));
-        assertThat(data.readShort()).isEqualTo((short)readFile);
-        assertThat(data.readShort()).isEqualTo((short)writeFile);
+        assertThat(data.readShort()).isEqualTo((short) readFile);
+        assertThat(data.readShort()).isEqualTo((short) writeFile);
         assertThat(data.readInt()).isEqualTo(readPosition);
         assertThat(data.readInt()).isEqualTo(writePosition);
         assertThat(data.readLong()).isEqualTo(count);
@@ -124,11 +124,28 @@ public class ByteQueueTest {
 
         assertThat(queue.count()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
+        assertThat(queue.remainingBytes()).isEqualTo(0);
+        assertThat(queue.remaningCount()).isEqualTo(0);
 
         assertThat(push(queue, s)).isTrue();
 
         assertThat(queue.count()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
+    }
+
+    @Test
+    public void testRemaningBytes() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+
+        String s = Strings.repeat("a", 508);
+
+        for (int i = 0; i < 60; i++)
+            push(queue, s);
+
+        assertThat(queue.count()).isEqualTo(60);
+        assertThat(queue.bytes()).isEqualTo(512 * 60);
+        assertThat(queue.remainingBytes()).isEqualTo(61 * 512);
+        assertThat(queue.remaningCount()).isEqualTo(61);
     }
 
     @Test
@@ -177,6 +194,21 @@ public class ByteQueueTest {
         push(queue, s);
         assertThat(queue.count()).isEqualTo(1);
         assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
+    }
+
+    @Test
+    public void testPeek() throws Exception {
+        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+
+        String s = Strings.repeat("a", 512);
+        push(queue, s);
+
+        assertThat(peek(queue)).isEqualTo(s);
+        assertThat(peek(queue)).isEqualTo(s);
+
+        assertThat(pop(queue)).isEqualTo(s);
+
+        assertThat(peek(queue)).isEqualTo(null);
     }
 
 
@@ -318,6 +350,13 @@ public class ByteQueueTest {
     private String pop(ByteQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         int read = queue.pop(buffer);
+        if (read < 0) return null;
+        return new String(buffer.buf(), 0, buffer.count());
+    }
+
+    private String peek(ByteQueue queue) throws IOException {
+        Buffer buffer = new Buffer();
+        int read = queue.peek(buffer);
         if (read < 0) return null;
         return new String(buffer.buf(), 0, buffer.count());
     }

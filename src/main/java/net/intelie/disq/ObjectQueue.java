@@ -3,6 +3,7 @@ package net.intelie.disq;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 
 public class ObjectQueue<T> implements AutoCloseable {
     private final ConcurrentLinkedQueue<WeakReference<Buffer>> pool;
@@ -35,6 +36,27 @@ public class ObjectQueue<T> implements AutoCloseable {
         queue.flush();
     }
 
+    public T blockingPop(long amount, TimeUnit unit) throws IOException, InterruptedException {
+        return doWithBuffer(buffer -> {
+            synchronized (queue) {
+                long target = System.currentTimeMillis() + unit.toMillis(amount);
+                while (queue.pop(buffer) < 0)
+                    queue.wait(target - System.currentTimeMillis());
+            }
+            return serializer.deserialize(buffer.read());
+        });
+    }
+
+    public T blockingPop() throws IOException, InterruptedException {
+        return doWithBuffer(buffer -> {
+            synchronized (queue) {
+                while (queue.pop(buffer) < 0)
+                    queue.wait();
+            }
+            return serializer.deserialize(buffer.read());
+        });
+    }
+
     public T pop() throws IOException {
         return doWithBuffer(buffer -> {
             if (queue.pop(buffer) < 0)
@@ -46,11 +68,22 @@ public class ObjectQueue<T> implements AutoCloseable {
     public boolean push(T obj) throws IOException {
         return doWithBuffer(buffer -> {
             serializer.serialize(buffer.write(), obj);
-            return queue.push(buffer);
+            synchronized (queue) {
+                queue.push(buffer);
+
+            }
         });
     }
 
-    private <Q> Q doWithBuffer(BufferOp<Q> op) throws IOException {
+    public T peek() throws IOException {
+        return doWithBuffer(buffer -> {
+            if (queue.peek(buffer) < 0)
+                return null;
+            return serializer.deserialize(buffer.read());
+        });
+    }
+
+    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<Q, E> op) throws IOException, E {
         Buffer buffer = null;
         WeakReference<Buffer> ref = null;
 
@@ -80,7 +113,7 @@ public class ObjectQueue<T> implements AutoCloseable {
         queue.close();
     }
 
-    private interface BufferOp<Q> {
-        Q call(Buffer buffer) throws IOException;
+    private interface BufferOp<Q, E extends Throwable> {
+        Q call(Buffer buffer) throws IOException, E;
     }
 }

@@ -30,6 +30,7 @@ public class ObjectQueueTest {
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.bytes()).isEqualTo(390);
+        assertThat(queue.peek()).isEqualTo("test10");
 
         for (int i = 10; i < 20; i++)
             assertThat(queue.pop()).isEqualTo("test" + i);
@@ -37,6 +38,7 @@ public class ObjectQueueTest {
         assertThat(queue.count()).isEqualTo(0);
         assertThat(queue.bytes()).isEqualTo(390);
         assertThat(queue.pop()).isNull();
+        assertThat(queue.peek()).isNull();
     }
 
     @Test

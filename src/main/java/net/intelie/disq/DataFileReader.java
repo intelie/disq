@@ -16,7 +16,7 @@ public class DataFileReader implements Closeable {
     }
 
     private void skipToPosition(long position) throws IOException {
-        while(position > 0)
+        while (position > 0)
             position -= fis.skip(position);
     }
 
@@ -29,23 +29,40 @@ public class DataFileReader implements Closeable {
     }
 
     public int read(Buffer buffer) throws IOException {
+        return internalRead(buffer, false);
+    }
+
+    private int internalRead(Buffer buffer, boolean peek) throws IOException {
         if (eof()) return -1;
+        if (peek) stream.mark(4);
         int size = stream.readInt();
+        if (peek) stream.reset();
+
+        stream.mark(4 + size);
         int total = DataFileWriter.OVERHEAD;
 
         buffer.setCount(size, false);
 
         int offset = 0;
 
+        if (peek) stream.readInt();
         while (size > 0) {
             int read = stream.read(buffer.buf(), offset, size);
             size -= read;
             offset += read;
             total += read;
         }
-        position += total;
+
+        if (peek)
+            stream.reset();
+        else
+            position += total;
 
         return total;
+    }
+
+    public int peek(Buffer buffer) throws IOException {
+        return internalRead(buffer, true);
     }
 
     @Override

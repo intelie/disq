@@ -59,6 +59,17 @@ public class ByteQueue implements AutoCloseable {
         return state.getCount();
     }
 
+    public synchronized long remainingBytes() {
+        ensureOpen();
+        return maxSize - state.getBytes();
+    }
+
+    public synchronized long remaningCount() {
+        ensureOpen();
+        double bytesPerElement = state.getBytes() / (double) state.getCount();
+        return (long) ((maxSize - state.getBytes()) / bytesPerElement);
+    }
+
     public synchronized void clear() throws IOException {
         ensureOpen();
         lenient.perform(new Lenient.Op() {
@@ -86,6 +97,20 @@ public class ByteQueue implements AutoCloseable {
                     state.flush();
 
                 checkReadEOF();
+                return buffer.count();
+            }
+        });
+    }
+
+    public synchronized int peek(Buffer buffer) throws IOException {
+        ensureOpen();
+        return lenient.perform(new Lenient.Op() {
+            @Override
+            public int call() throws IOException {
+                if (checkReadEOF())
+                    return -1;
+
+                reader().peek(buffer);
                 return buffer.count();
             }
         });

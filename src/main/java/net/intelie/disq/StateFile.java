@@ -7,7 +7,7 @@ import java.nio.file.Path;
 
 public class StateFile implements Closeable {
     public static final short MAX_FILES = 121;
-    public static final short TWICE_MAX_FILES = 2 * MAX_FILES;
+    public static final short MAX_FILE_ID = Short.MAX_VALUE / MAX_FILES * MAX_FILES;
     //we use this to allow identifying when read = write because they are in fact same file
     //or we just have a full queue
 
@@ -79,14 +79,14 @@ public class StateFile implements Closeable {
         count -= oldCount;
         bytes -= oldBytes;
         readFile++;
-        readFile %= TWICE_MAX_FILES;
+        readFile %= MAX_FILE_ID;
         readPosition = 0;
         return readFile;
     }
 
     public int advanceWriteFile() {
         writeFile++;
-        writeFile %= TWICE_MAX_FILES;
+        writeFile %= MAX_FILE_ID;
         writePosition = 0;
         return writeFile;
     }
