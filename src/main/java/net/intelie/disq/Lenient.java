@@ -3,9 +3,9 @@ package net.intelie.disq;
 import java.io.IOException;
 
 public class Lenient {
-    private final ByteQueue queue;
+    private final DiskRawQueue queue;
 
-    public Lenient(ByteQueue queue) {
+    public Lenient(DiskRawQueue queue) {
         this.queue = queue;
     }
 

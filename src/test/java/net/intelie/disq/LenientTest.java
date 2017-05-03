@@ -14,7 +14,7 @@ import static org.mockito.Mockito.*;
 public class LenientTest {
     @Test
     public void onExceptionOnTheFirstTime() throws Exception {
-        ByteQueue queue = mock(ByteQueue.class);
+        DiskRawQueue queue = mock(DiskRawQueue.class);
         Lenient.Op op = mock(Lenient.Op.class);
 
         Lenient lenient = new Lenient(queue);
@@ -33,7 +33,7 @@ public class LenientTest {
 
     @Test
     public void onExceptionAlways() throws Exception {
-        ByteQueue queue = mock(ByteQueue.class);
+        DiskRawQueue queue = mock(DiskRawQueue.class);
         Lenient.Op op = mock(Lenient.Op.class);
 
         Lenient lenient = new Lenient(queue);

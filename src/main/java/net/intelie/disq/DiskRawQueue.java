@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class ByteQueue implements AutoCloseable {
+public class DiskRawQueue implements RawQueue {
     private final Path directory;
     private final long maxSize;
     private final long dataFileLimit;
@@ -18,11 +18,11 @@ public class ByteQueue implements AutoCloseable {
     private DataFileReader reader;
     private DataFileWriter writer;
 
-    public ByteQueue(Path directory, long maxSize) throws IOException {
+    public DiskRawQueue(Path directory, long maxSize) throws IOException {
         this(directory, maxSize, true, true, true);
     }
 
-    public ByteQueue(Path directory, long maxSize, boolean flushOnPop, boolean flushOnPush, boolean deleteOldestOnOverflow) throws IOException {
+    public DiskRawQueue(Path directory, long maxSize, boolean flushOnPop, boolean flushOnPush, boolean deleteOldestOnOverflow) throws IOException {
         this.directory = directory;
         this.maxSize = Math.max(Math.min(maxSize, StateFile.MAX_QUEUE_SIZE), StateFile.MIN_QUEUE_SIZE);
         this.dataFileLimit = Math.max(512, this.maxSize / StateFile.MAX_FILES + (this.maxSize % StateFile.MAX_FILES > 0 ? 1 : 0));
@@ -35,6 +35,7 @@ public class ByteQueue implements AutoCloseable {
         reopen();
     }
 
+    @Override
     public synchronized void reopen() throws IOException {
         close();
         Files.createDirectories(this.directory);
@@ -49,102 +50,96 @@ public class ByteQueue implements AutoCloseable {
             throw new IllegalStateException("This queue is already closed.");
     }
 
+    @Override
     public synchronized long bytes() {
         ensureOpen();
         return state.getBytes();
     }
 
+    @Override
     public synchronized long count() {
         ensureOpen();
         return state.getCount();
     }
 
+    @Override
     public synchronized long remainingBytes() {
         ensureOpen();
         return maxSize - state.getBytes();
     }
 
+    @Override
     public synchronized long remaningCount() {
         ensureOpen();
         double bytesPerElement = state.getBytes() / (double) state.getCount();
         return (long) ((maxSize - state.getBytes()) / bytesPerElement);
     }
 
+    @Override
     public synchronized void clear() throws IOException {
         ensureOpen();
-        lenient.perform(new Lenient.Op() {
-            @Override
-            public boolean call() throws IOException {
-                state.clear();
-                state.flush();
-                reopen();
-                return true;
-            }
+        lenient.perform(() -> {
+            state.clear();
+            state.flush();
+            reopen();
+            return true;
         });
     }
 
+    @Override
     public synchronized boolean pop(Buffer buffer) throws IOException {
         ensureOpen();
-        return lenient.perform(new Lenient.Op() {
-            @Override
-            public boolean call() throws IOException {
-                if (checkReadEOF())
-                    return false;
+        return lenient.perform(() -> {
+            if (checkReadEOF())
+                return false;
 
-                int read = reader().read(buffer);
-                state.addReadCount(read);
-                if (flushOnRead)
-                    state.flush();
+            int read = reader().read(buffer);
+            state.addReadCount(read);
+            if (flushOnRead)
+                state.flush();
 
-                checkReadEOF();
-                return true;
-            }
+            checkReadEOF();
+            return true;
         });
     }
 
+    @Override
     public synchronized boolean peek(Buffer buffer) throws IOException {
         ensureOpen();
-        return lenient.perform(new Lenient.Op() {
-            @Override
-            public boolean call() throws IOException {
-                if (checkReadEOF())
-                    return false;
+        return lenient.perform(() -> {
+            if (checkReadEOF())
+                return false;
 
-                reader().peek(buffer);
-                return true;
-            }
+            reader().peek(buffer);
+            return true;
         });
     }
 
-    private boolean deleteOldestFile() throws IOException {
+    private void deleteOldestFile() throws IOException {
         int currentFile = state.getReadFile();
         state.advanceReadFile(reader().size());
         reader.close();
         state.flush();
         reader = null;
         tryDeleteFile(currentFile);
-
-        return true;
     }
 
 
+    @Override
     public synchronized boolean push(Buffer buffer) throws IOException {
         ensureOpen();
-        return lenient.perform(new Lenient.Op() {
-            @Override
-            public boolean call() throws IOException {
-                checkWriteEOF();
-                if (checkFutureQueueOverflow(buffer))
-                    return false;
+        return lenient.perform(() -> {
+            checkWriteEOF();
+            if (checkFutureQueueOverflow(buffer))
+                return false;
 
-                int written = writer().write(buffer);
-                state.addWriteCount(written);
-                if (flushOnWrite)
-                    state.flush();
+            int written = writer().write(buffer);
+            state.addWriteCount(written);
+            if (flushOnWrite)
+                state.flush();
 
-                checkWriteEOF();
-                return true;
-            }
+            checkWriteEOF();
+            return true;
         });
     }
 
@@ -158,10 +153,12 @@ public class ByteQueue implements AutoCloseable {
         }
     }
 
+    @Override
     public void flush() throws IOException {
         state.flush();
     }
 
+    @Override
     public synchronized void close() {
         lenient.safeClose(reader);
         reader = null;

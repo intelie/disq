@@ -26,7 +26,7 @@ public class PersistentBlockingQueue<T> extends AbstractQueue<T> implements Bloc
 
     @Override
     public void put(T obj) throws InterruptedException {
-        offer(obj);
+
     }
 
     @Override

@@ -6,24 +6,30 @@ import java.io.OutputStream;
 import java.util.Arrays;
 
 public class Buffer {
+    private final int maxCapacity;
     private byte[] buf;
     private int count;
 
     public Buffer() {
-        this(32);
+        this(-1);
     }
 
-    public Buffer(int initialCapacity) {
-        this(new byte[initialCapacity], 0);
+    public Buffer(int maxCapacity) {
+        this(32, maxCapacity);
+    }
+
+    public Buffer(int initialCapacity, int maxCapacity) {
+        this(new byte[initialCapacity], 0, maxCapacity);
     }
 
     public Buffer(byte[] buf) {
-        this(buf, buf.length);
+        this(buf, buf.length, buf.length);
     }
 
-    private Buffer(byte[] buf, int count) {
+    private Buffer(byte[] buf, int count, int maxCapacity) {
         this.buf = buf;
         this.count = count;
+        this.maxCapacity = maxCapacity;
     }
 
     public int currentCapacity() {
@@ -58,8 +64,15 @@ public class Buffer {
     }
 
     public void ensureCapacity(int capacity, boolean preserve) {
+        if (capacity < buf.length) return;
         int newCapacity = (1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity) - 1));
         if (newCapacity < capacity) newCapacity <<= 1;
+
+        if (maxCapacity >= 0) {
+            newCapacity = Math.min(newCapacity, maxCapacity);
+            if (newCapacity <= this.buf.length)
+                throw new IllegalStateException("Maximum buffer capacity reached: " + newCapacity + " bytes");
+        }
 
         if (preserve) buf = Arrays.copyOf(buf, newCapacity);
         else buf = new byte[newCapacity];

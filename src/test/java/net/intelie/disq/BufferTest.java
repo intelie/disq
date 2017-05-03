@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BufferTest {
     @Test
@@ -28,6 +29,33 @@ public class BufferTest {
         assertThat(buffer.count()).isEqualTo(513);
         assertThat(buffer.currentCapacity()).isEqualTo(1024);
         assertThat(buffer.toArray()).isEqualTo((s + "aa").getBytes());
+    }
+
+    @Test
+    public void testWriteSmallString() throws Exception {
+        Buffer buffer = new Buffer();
+
+        PrintStream stream = new PrintStream(buffer.write());
+        stream.print("aa");
+
+        assertThat(buffer.currentCapacity()).isEqualTo(32);
+    }
+
+    @Test
+    public void testWriteBigStringThatExceedsCapacity() throws Exception {
+        Buffer buffer = new Buffer(300);
+
+        PrintStream stream = new PrintStream(buffer.write());
+
+        String s = Strings.repeat("a", 300);
+        stream.print(s);
+
+        assertThat(buffer.currentCapacity()).isEqualTo(300);
+
+        assertThatThrownBy(() -> stream.write('a'))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Maximum buffer capacity")
+                .hasMessageContaining("300 bytes");
     }
 
     @Test

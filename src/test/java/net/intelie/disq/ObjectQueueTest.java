@@ -1,14 +1,13 @@
 package net.intelie.disq;
 
 
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.*;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.InflaterInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,8 +17,8 @@ public class ObjectQueueTest {
 
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
-        ByteQueue bq = new ByteQueue(temp.getRoot().toPath(), 1000);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer());
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
+        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -29,22 +28,32 @@ public class ObjectQueueTest {
         queue.reopen();
 
         assertThat(queue.count()).isEqualTo(10);
-        assertThat(queue.bytes()).isEqualTo(390);
+        assertThat(queue.bytes()).isEqualTo(230);
         assertThat(queue.peek()).isEqualTo("test10");
 
         for (int i = 10; i < 20; i++)
             assertThat(queue.pop()).isEqualTo("test" + i);
 
         assertThat(queue.count()).isEqualTo(0);
-        assertThat(queue.bytes()).isEqualTo(390);
+        assertThat(queue.bytes()).isEqualTo(230);
         assertThat(queue.pop()).isNull();
         assertThat(queue.peek()).isNull();
     }
 
     @Test
+    public void canPushBigCompressing() throws Exception {
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
+        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, true);
+
+        queue.push(Strings.repeat("a", 10000));
+
+        assertThat(queue.bytes()).isLessThan(10000);
+    }
+
+    @Test
     public void canClear() throws Exception {
-        ByteQueue bq = new ByteQueue(temp.getRoot().toPath(), 1000);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer());
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
+        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -55,8 +64,8 @@ public class ObjectQueueTest {
 
     @Test
     public void canAvoidFlush() throws Exception {
-        ByteQueue bq = new ByteQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer());
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
+        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -71,14 +80,14 @@ public class ObjectQueueTest {
 
         @Override
         public void serialize(OutputStream stream, Object obj) throws IOException {
-            try (OutputStreamWriter writer = new OutputStreamWriter(new DeflaterOutputStream(stream))) {
+            try (OutputStreamWriter writer = new OutputStreamWriter(stream)) {
                 gson.toJson(obj, writer);
             }
         }
 
         @Override
         public Object deserialize(InputStream stream) throws IOException {
-            try (InputStreamReader reader = new InputStreamReader(new InflaterInputStream(stream))) {
+            try (InputStreamReader reader = new InputStreamReader(stream)) {
                 return gson.fromJson(reader, Object.class);
             }
         }

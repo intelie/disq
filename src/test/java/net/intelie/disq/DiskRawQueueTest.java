@@ -13,13 +13,13 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class ByteQueueTest {
+public class DiskRawQueueTest {
     @Rule
     public TemporaryFolder temp = new TemporaryFolder();
 
     @Test
     public void testPushOnClosedQueue() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         queue.close();
 
         assertThatThrownBy(() -> {
@@ -29,7 +29,7 @@ public class ByteQueueTest {
 
     @Test
     public void testExceptionOnClose() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         for (String file : temp.getRoot().list()) {
             new File(temp.getRoot(), file).delete();
         }
@@ -43,7 +43,7 @@ public class ByteQueueTest {
 
     @Test
     public void testSimplePushsAndPops() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
 
         for (int i = 0; i < 20; i++) {
             String s = "test" + String.format("%02x", i);
@@ -59,7 +59,7 @@ public class ByteQueueTest {
 
     @Test
     public void testSimplePushsAndPopsNoFlush() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000, false, false, true);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, true);
         queue.flush();
 
         for (int i = 0; i < 20; i++) {
@@ -99,7 +99,7 @@ public class ByteQueueTest {
 
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 1000);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
 
         for (int i = 0; i < 20; i++)
             push(queue, "test" + i);
@@ -115,7 +115,7 @@ public class ByteQueueTest {
 
     @Test
     public void testLimitByMaxSize() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
         String s = Strings.repeat("a", 508);
 
@@ -135,7 +135,7 @@ public class ByteQueueTest {
 
     @Test
     public void testRemaningBytes() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
         String s = Strings.repeat("a", 508);
 
@@ -150,7 +150,7 @@ public class ByteQueueTest {
 
     @Test
     public void testLimitByMaxSizeNoOverflow() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121, true, true, false);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121, true, true, false);
 
         String s = Strings.repeat("a", 508);
 
@@ -168,7 +168,7 @@ public class ByteQueueTest {
 
     @Test
     public void testLimitByMaxSizeOnlyTwoFiles() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
         String s = Strings.repeat("a", 512 * 100);
 
@@ -183,7 +183,7 @@ public class ByteQueueTest {
 
     @Test
     public void testLimitByMaxSizeOnlyOneFile() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
         String s = Strings.repeat("a", 512 * 100);
 
@@ -198,7 +198,7 @@ public class ByteQueueTest {
 
     @Test
     public void testPeek() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512 * 121);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
         String s = Strings.repeat("a", 512);
         push(queue, s);
@@ -214,7 +214,7 @@ public class ByteQueueTest {
 
     @Test
     public void testPopOnly() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
 
         String s = Strings.repeat("a", 512);
 
@@ -230,14 +230,14 @@ public class ByteQueueTest {
         assertThat(queue.pop(buffer)).isFalse();
     }
 
-    private void assertBytesAndCount(ByteQueue queue, int bytes, int count) {
+    private void assertBytesAndCount(DiskRawQueue queue, int bytes, int count) {
         assertThat(queue.bytes()).isEqualTo(bytes);
         assertThat(queue.count()).isEqualTo(count);
     }
 
     @Test
     public void testSpanningMultipleFiles() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
 
         String s = Strings.repeat("a", 512);
 
@@ -261,7 +261,7 @@ public class ByteQueueTest {
 
     @Test
     public void testAbleToRecoverOnDirectoryDelete() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
 
         String s = Strings.repeat("a", 512);
 
@@ -283,7 +283,7 @@ public class ByteQueueTest {
 
     @Test
     public void testDeleteAllFiles() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
 
         String s = Strings.repeat("a", 512);
 
@@ -301,7 +301,7 @@ public class ByteQueueTest {
 
     @Test
     public void testAbleToRecoverOnDataFilesDelete() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
 
         String s = Strings.repeat("a", 512);
 
@@ -324,7 +324,7 @@ public class ByteQueueTest {
 
     @Test
     public void testAbleToRecoverOnDataFilesMadeReadOnly() throws Exception {
-        ByteQueue queue = new ByteQueue(temp.getRoot().toPath(), 512);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
 
         String s = Strings.repeat("a", 512);
 
@@ -344,17 +344,17 @@ public class ByteQueueTest {
         assertThat(temp.getRoot().list()).containsOnly("state", "data05");
     }
 
-    private boolean push(ByteQueue queue, String s) throws IOException {
+    private boolean push(DiskRawQueue queue, String s) throws IOException {
         return queue.push(new Buffer(s.getBytes()));
     }
 
-    private String pop(ByteQueue queue) throws IOException {
+    private String pop(DiskRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.pop(buffer)) return null;
         return new String(buffer.buf(), 0, buffer.count());
     }
 
-    private String peek(ByteQueue queue) throws IOException {
+    private String peek(DiskRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.peek(buffer)) return null;
         return new String(buffer.buf(), 0, buffer.count());
