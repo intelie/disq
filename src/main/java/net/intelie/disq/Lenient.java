@@ -9,7 +9,7 @@ public class Lenient {
         this.queue = queue;
     }
 
-    public int perform(Op supplier) throws IOException {
+    public boolean perform(Op supplier) throws IOException {
         try {
             return supplier.call();
         } catch (Throwable e) {
@@ -34,7 +34,7 @@ public class Lenient {
     }
 
     public interface Op {
-        int call() throws IOException;
+        boolean call() throws IOException;
     }
 
 

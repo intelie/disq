@@ -36,11 +36,12 @@ public class ObjectQueue<T> implements AutoCloseable {
         queue.flush();
     }
 
+
     public T blockingPop(long amount, TimeUnit unit) throws IOException, InterruptedException {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
                 long target = System.currentTimeMillis() + unit.toMillis(amount);
-                while (queue.pop(buffer) < 0)
+                while (!queue.pop(buffer))
                     queue.wait(target - System.currentTimeMillis());
             }
             return serializer.deserialize(buffer.read());
@@ -50,17 +51,43 @@ public class ObjectQueue<T> implements AutoCloseable {
     public T blockingPop() throws IOException, InterruptedException {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
-                while (queue.pop(buffer) < 0)
+                while (!queue.pop(buffer))
                     queue.wait();
             }
             return serializer.deserialize(buffer.read());
         });
     }
 
+    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws IOException, InterruptedException {
+        return doWithBuffer(buffer -> {
+            synchronized (queue) {
+                long target = System.currentTimeMillis() + unit.toMillis(amount);
+                while (!queue.pop(buffer))
+                    queue.wait(target - System.currentTimeMillis());
+            }
+            return true;
+        });
+    }
+
+    public boolean blockingPush(T obj) throws IOException, InterruptedException {
+        return doWithBuffer(buffer -> {
+            serializer.serialize(buffer.write(), obj);
+            synchronized (queue) {
+                while (!queue.push(buffer))
+                    queue.wait();
+            }
+            return true;
+        });
+    }
+
     public T pop() throws IOException {
         return doWithBuffer(buffer -> {
-            if (queue.pop(buffer) < 0)
-                return null;
+            synchronized (queue) {
+                if (!queue.pop(buffer))
+                    return null;
+                else
+                    queue.notifyAll();
+            }
             return serializer.deserialize(buffer.read());
         });
     }
@@ -69,15 +96,15 @@ public class ObjectQueue<T> implements AutoCloseable {
         return doWithBuffer(buffer -> {
             serializer.serialize(buffer.write(), obj);
             synchronized (queue) {
-                queue.push(buffer);
-
+                queue.notifyAll();
+                return queue.push(buffer);
             }
         });
     }
 
     public T peek() throws IOException {
         return doWithBuffer(buffer -> {
-            if (queue.peek(buffer) < 0)
+            if (!queue.peek(buffer))
                 return null;
             return serializer.deserialize(buffer.read());
         });

@@ -223,10 +223,11 @@ public class ByteQueueTest {
 
         Buffer buffer = new Buffer();
 
-        assertThat(queue.pop(buffer)).isEqualTo(512);
-        assertThat(queue.pop(buffer)).isEqualTo(512);
-        assertThat(queue.pop(buffer)).isEqualTo(512);
-        assertThat(queue.pop(buffer)).isEqualTo(-1);
+        for (int i = 0; i < 3; i++) {
+            assertThat(queue.pop(buffer)).isTrue();
+            assertThat(buffer.count()).isEqualTo(512);
+        }
+        assertThat(queue.pop(buffer)).isFalse();
     }
 
     private void assertBytesAndCount(ByteQueue queue, int bytes, int count) {
@@ -349,15 +350,13 @@ public class ByteQueueTest {
 
     private String pop(ByteQueue queue) throws IOException {
         Buffer buffer = new Buffer();
-        int read = queue.pop(buffer);
-        if (read < 0) return null;
+        if (!queue.pop(buffer)) return null;
         return new String(buffer.buf(), 0, buffer.count());
     }
 
     private String peek(ByteQueue queue) throws IOException {
         Buffer buffer = new Buffer();
-        int read = queue.peek(buffer);
-        if (read < 0) return null;
+        if (!queue.peek(buffer)) return null;
         return new String(buffer.buf(), 0, buffer.count());
     }
 }

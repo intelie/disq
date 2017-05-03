@@ -74,22 +74,22 @@ public class ByteQueue implements AutoCloseable {
         ensureOpen();
         lenient.perform(new Lenient.Op() {
             @Override
-            public int call() throws IOException {
+            public boolean call() throws IOException {
                 state.clear();
                 state.flush();
                 reopen();
-                return 0;
+                return true;
             }
         });
     }
 
-    public synchronized int pop(Buffer buffer) throws IOException {
+    public synchronized boolean pop(Buffer buffer) throws IOException {
         ensureOpen();
         return lenient.perform(new Lenient.Op() {
             @Override
-            public int call() throws IOException {
+            public boolean call() throws IOException {
                 if (checkReadEOF())
-                    return -1;
+                    return false;
 
                 int read = reader().read(buffer);
                 state.addReadCount(read);
@@ -97,21 +97,21 @@ public class ByteQueue implements AutoCloseable {
                     state.flush();
 
                 checkReadEOF();
-                return buffer.count();
+                return true;
             }
         });
     }
 
-    public synchronized int peek(Buffer buffer) throws IOException {
+    public synchronized boolean peek(Buffer buffer) throws IOException {
         ensureOpen();
         return lenient.perform(new Lenient.Op() {
             @Override
-            public int call() throws IOException {
+            public boolean call() throws IOException {
                 if (checkReadEOF())
-                    return -1;
+                    return false;
 
                 reader().peek(buffer);
-                return buffer.count();
+                return true;
             }
         });
     }
@@ -132,10 +132,10 @@ public class ByteQueue implements AutoCloseable {
         ensureOpen();
         return lenient.perform(new Lenient.Op() {
             @Override
-            public int call() throws IOException {
+            public boolean call() throws IOException {
                 checkWriteEOF();
                 if (checkFutureQueueOverflow(buffer))
-                    return 0;
+                    return false;
 
                 int written = writer().write(buffer);
                 state.addWriteCount(written);
@@ -143,9 +143,9 @@ public class ByteQueue implements AutoCloseable {
                     state.flush();
 
                 checkWriteEOF();
-                return 1;
+                return true;
             }
-        }) != 0;
+        });
     }
 
     private boolean checkFutureQueueOverflow(Buffer buffer) throws IOException {
