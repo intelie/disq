@@ -112,9 +112,12 @@ public class ObjectQueue<T> implements AutoCloseable {
         return doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
-                queue.notifyAll();
-                return queue.push(buffer);
+                if (!queue.push(buffer))
+                    return null;
+                else
+                    queue.notifyAll();
             }
+            return true;
         });
     }
 
