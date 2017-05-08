@@ -10,14 +10,22 @@ import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 public class ObjectQueue<T> implements AutoCloseable {
+    private static final int MAX_WAIT = 10000;
+
     private final ConcurrentLinkedQueue<WeakReference<Buffer>> pool;
-    private final DiskRawQueue queue;
+    private final ArrayRawQueue fallback;
+    private final RawQueue queue;
     private final Serializer<T> serializer;
     private final int initialBufferCapacity;
     private final int maxBufferCapacity;
     private final boolean compress;
 
-    public ObjectQueue(DiskRawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
+    public ObjectQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
+        this(queue, serializer, initialBufferCapacity, maxBufferCapacity, compress, 0);
+    }
+
+    public ObjectQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress, int fallbackBufferCapacity) {
+        this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
         this.queue = queue;
         this.serializer = serializer;
         this.initialBufferCapacity = initialBufferCapacity;
@@ -28,30 +36,33 @@ public class ObjectQueue<T> implements AutoCloseable {
 
     public void reopen() throws IOException {
         queue.reopen();
+        fallback.reopen();
     }
 
     public long bytes() {
-        return queue.bytes();
+        return queue.bytes() + fallback.bytes();
     }
 
     public long count() {
-        return queue.count();
+        return queue.count() + fallback.count();
     }
 
     public void clear() throws IOException {
         queue.clear();
+        fallback.clear();
     }
 
     public void flush() throws IOException {
         queue.flush();
+        fallback.flush();
     }
 
-    public T blockingPop(long amount, TimeUnit unit) throws IOException, InterruptedException {
+    public T blockingPop(long amount, TimeUnit unit) throws InterruptedException {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
                 long target = System.currentTimeMillis() + unit.toMillis(amount);
-                while (!queue.pop(buffer)) {
-                    long wait = target - System.currentTimeMillis();
+                while (!notifyingPop(buffer)) {
+                    long wait = Math.min(MAX_WAIT, target - System.currentTimeMillis());
                     if (wait <= 0) return null;
                     queue.wait(wait);
                 }
@@ -63,20 +74,20 @@ public class ObjectQueue<T> implements AutoCloseable {
     public T blockingPop() throws IOException, InterruptedException {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
-                while (!queue.pop(buffer))
-                    queue.wait();
+                while (!notifyingPop(buffer))
+                    queue.wait(MAX_WAIT);
             }
             return deserialize(buffer);
         });
     }
 
-    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws IOException, InterruptedException {
+    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException {
         return doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
                 long target = System.currentTimeMillis() + unit.toMillis(amount);
-                while (!queue.push(buffer)) {
-                    long wait = target - System.currentTimeMillis();
+                while (!notifyingPush(buffer)) {
+                    long wait = Math.min(MAX_WAIT, target - System.currentTimeMillis());
                     if (wait <= 0) return false;
                     queue.wait(target - System.currentTimeMillis());
                 }
@@ -85,63 +96,116 @@ public class ObjectQueue<T> implements AutoCloseable {
         });
     }
 
-    public boolean blockingPush(T obj) throws IOException, InterruptedException {
+    public boolean blockingPush(T obj) throws InterruptedException {
         return doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
-                while (!queue.push(buffer))
-                    queue.wait();
+                while (!notifyingPush(buffer))
+                    queue.wait(MAX_WAIT);
             }
             return true;
         });
     }
 
-    public T pop() throws IOException {
+    public T pop() {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
-                if (!queue.pop(buffer))
-                    return null;
-                else
-                    queue.notifyAll();
+                if (!notifyingPop(buffer)) return null;
             }
             return deserialize(buffer);
         });
     }
 
-    public boolean push(T obj) throws IOException {
+    public boolean push(T obj) {
         return doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
-                if (!queue.push(buffer))
-                    return false;
-                else
-                    queue.notifyAll();
+                if (!notifyingPush(buffer)) return false;
             }
             return true;
         });
     }
 
-    private T deserialize(Buffer buffer) throws IOException {
-        InputStream read = buffer.read();
-        if (compress) read = new InflaterInputStream(read);
-        return serializer.deserialize(read);
+    private boolean notifyingPop(Buffer buffer) {
+        if (!innerPop(buffer))
+            return false;
+        else {
+            queue.notifyAll();
+            return true;
+        }
     }
 
-    private void serialize(T obj, Buffer buffer) throws IOException {
-        OutputStream write = buffer.write();
-        if (compress) write = new DeflaterOutputStream(write);
-        serializer.serialize(write, obj);
+    private boolean notifyingPush(Buffer buffer) {
+        if (!innerPush(buffer))
+            return false;
+        else {
+            queue.notifyAll();
+            return true;
+        }
+    }
+
+    private T deserialize(Buffer buffer) {
+        try {
+            InputStream read = buffer.read();
+            if (compress) read = new InflaterInputStream(read);
+            return serializer.deserialize(read);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private void serialize(T obj, Buffer buffer) {
+        try {
+            buffer.setCount(0, false);
+            OutputStream write = buffer.write();
+            if (compress) write = new DeflaterOutputStream(write);
+            serializer.serialize(write, obj);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public T peek() throws IOException {
         return doWithBuffer(buffer -> {
-            if (!queue.peek(buffer))
+            if (!innerPeek(buffer))
                 return null;
             return deserialize(buffer);
         });
     }
 
-    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<Q, E> op) throws IOException, E {
+    private boolean innerPeek(Buffer buffer) {
+        if (fallback.peek(buffer)) return true;
+
+        try {
+            return queue.peek(buffer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean innerPop(Buffer buffer) {
+        if (fallback.pop(buffer)) return true;
+
+        try {
+            return queue.pop(buffer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean innerPush(Buffer buffer) {
+        try {
+            return queue.push(buffer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return fallback.push(buffer);
+        }
+    }
+
+    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<Q, E> op) throws E {
         Buffer buffer = null;
         WeakReference<Buffer> ref = null;
 
@@ -172,6 +236,6 @@ public class ObjectQueue<T> implements AutoCloseable {
     }
 
     private interface BufferOp<Q, E extends Throwable> {
-        Q call(Buffer buffer) throws IOException, E;
+        Q call(Buffer buffer) throws E;
     }
 }

@@ -64,14 +64,16 @@ public class Buffer {
     }
 
     public void ensureCapacity(int capacity, boolean preserve) {
-        if (capacity < buf.length) return;
+        if (capacity <= buf.length) return;
         int newCapacity = (1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity) - 1));
         if (newCapacity < capacity) newCapacity <<= 1;
 
         if (maxCapacity >= 0) {
             newCapacity = Math.min(newCapacity, maxCapacity);
-            if (newCapacity <= this.buf.length)
+            if (newCapacity <= this.buf.length) {
+                System.out.println(capacity + " " + buf.length + " " + newCapacity + " " + maxCapacity);
                 throw new IllegalStateException("Maximum buffer capacity reached: " + newCapacity + " bytes");
+            }
         }
 
         if (preserve) buf = Arrays.copyOf(buf, newCapacity);

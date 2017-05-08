@@ -1,7 +1,5 @@
 package net.intelie.disq;
 
-import java.io.IOException;
-
 public class ArrayRawQueue implements RawQueue {
     private final byte[] memory;
     private final boolean deleteOldestOnOverflow;
@@ -13,7 +11,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public void reopen() throws IOException {
+    public void reopen() {
 
     }
 
@@ -39,12 +37,12 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized void clear() throws IOException {
+    public synchronized void clear() {
         begin = count = bytes = 0;
     }
 
     @Override
-    public synchronized boolean pop(Buffer buffer) throws IOException {
+    public synchronized boolean pop(Buffer buffer) {
         if (!peek(buffer)) return false;
         int read = 4 + buffer.count();
         begin = (begin + read) % memory.length;
@@ -54,7 +52,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized boolean peek(Buffer buffer) throws IOException {
+    public synchronized boolean peek(Buffer buffer) {
         if (bytes == 0) return false;
         int size = readInt();
         buffer.setCount(size, false);
@@ -70,7 +68,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized boolean push(Buffer buffer) throws IOException {
+    public synchronized boolean push(Buffer buffer) {
         int size = buffer.count();
         if (size + 4 > memory.length) return false;
         while (deleteOldestOnOverflow && this.bytes + size + 4 > memory.length) {
@@ -95,7 +93,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public void flush() throws IOException {
+    public void flush() {
 
     }
 

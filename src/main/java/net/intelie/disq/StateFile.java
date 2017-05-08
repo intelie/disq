@@ -74,7 +74,7 @@ public class StateFile implements Closeable {
     }
 
     public int advanceReadFile(long oldBytes) {
-        int oldCount = fileCounts[readFile];
+        int oldCount = fileCounts[getReadFile()];
         fileCounts[getReadFile()] = 0;
         count -= oldCount;
         bytes -= oldBytes;

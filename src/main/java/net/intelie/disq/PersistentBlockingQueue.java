@@ -61,20 +61,12 @@ public class PersistentBlockingQueue<T> extends AbstractQueue<T> implements Bloc
 
     @Override
     public boolean offer(T obj) {
-        try {
-            return queue.push(obj);
-        } catch (IOException e) {
-            return false;
-        }
+        return queue.push(obj);
     }
 
     @Override
     public T poll() {
-        try {
-            return queue.pop();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
+        return queue.pop();
     }
 
     @Override
