@@ -31,7 +31,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized long remaningCount() {
+    public synchronized long remainingCount() {
         if (count() == 0) return memory.length / 4;
         return (long) (remainingBytes() / (bytes() / (double) count()));
     }

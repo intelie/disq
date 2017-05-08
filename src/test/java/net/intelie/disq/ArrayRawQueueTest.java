@@ -28,13 +28,13 @@ public class ArrayRawQueueTest {
             assertThat(queue.bytes()).isGreaterThanOrEqualTo(9);
             assertThat(queue.count()).isEqualTo(1);
             assertThat(queue.remainingBytes()).isLessThanOrEqualTo(10);
-            assertThat(queue.remaningCount()).isEqualTo(0);
+            assertThat(queue.remainingCount()).isEqualTo(0);
 
             assertThat(pop(queue)).isEqualTo(s);
             assertThat(queue.bytes()).isEqualTo(0);
             assertThat(queue.count()).isEqualTo(0);
             assertThat(queue.remainingBytes()).isLessThanOrEqualTo(20);
-            assertThat(queue.remaningCount()).isEqualTo(2);
+            assertThat(queue.remainingCount()).isEqualTo(2);
         }
     }
 
@@ -48,13 +48,13 @@ public class ArrayRawQueueTest {
         assertThat(queue.count()).isEqualTo(20);
         assertThat(queue.bytes()).isEqualTo(200);
         assertThat(queue.remainingBytes()).isEqualTo(0);
-        assertThat(queue.remaningCount()).isEqualTo(0);
+        assertThat(queue.remainingCount()).isEqualTo(0);
 
         queue.clear();
         assertThat(queue.count()).isEqualTo(0);
         assertThat(queue.bytes()).isEqualTo(0);
         assertThat(queue.remainingBytes()).isEqualTo(200);
-        assertThat(queue.remaningCount()).isEqualTo(50);
+        assertThat(queue.remainingCount()).isEqualTo(50);
     }
 
     @Test

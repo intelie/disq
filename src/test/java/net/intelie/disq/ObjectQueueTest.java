@@ -74,7 +74,7 @@ public class ObjectQueueTest {
                     try {
                         System.out.println("READ " + i);
                         assertThat(queue.blockingPop()).isEqualTo(s + i);
-                    } catch (IOException | InterruptedException e) {
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -116,7 +116,7 @@ public class ObjectQueueTest {
                     try {
                         System.out.println("READ " + i);
                         assertThat(queue.blockingPop()).isEqualTo(s + i);
-                    } catch (IOException | InterruptedException e) {
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }

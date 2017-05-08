@@ -1,6 +1,5 @@
 package net.intelie.disq;
 
-import java.io.IOException;
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -26,27 +25,27 @@ public class PersistentBlockingQueue<T> extends AbstractQueue<T> implements Bloc
 
     @Override
     public void put(T obj) throws InterruptedException {
-
+        queue.blockingPush(obj);
     }
 
     @Override
     public boolean offer(T obj, long timeout, TimeUnit unit) throws InterruptedException {
-        return offer(obj);
+        return queue.blockingPush(obj, timeout, unit);
     }
 
     @Override
     public T take() throws InterruptedException {
-        return null;
+        return queue.blockingPop();
     }
 
     @Override
     public T poll(long timeout, TimeUnit unit) throws InterruptedException {
-        return null;
+        return queue.blockingPop(timeout, unit);
     }
 
     @Override
     public int remainingCapacity() {
-        return Integer.MAX_VALUE;
+        return (int) Math.min(queue.remainingCount(), Integer.MAX_VALUE);
     }
 
     @Override
@@ -71,10 +70,6 @@ public class PersistentBlockingQueue<T> extends AbstractQueue<T> implements Bloc
 
     @Override
     public T peek() {
-        try {
-            return queue.peek();
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
+        return queue.peek();
     }
 }

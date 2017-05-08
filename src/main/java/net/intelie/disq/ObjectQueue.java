@@ -47,6 +47,14 @@ public class ObjectQueue<T> implements AutoCloseable {
         return queue.count() + fallback.count();
     }
 
+    public long remainingBytes() {
+        return queue.remainingBytes();
+    }
+
+    public long remainingCount() {
+        return queue.remainingCount();
+    }
+
     public void clear() throws IOException {
         queue.clear();
         fallback.clear();
@@ -71,7 +79,7 @@ public class ObjectQueue<T> implements AutoCloseable {
         });
     }
 
-    public T blockingPop() throws IOException, InterruptedException {
+    public T blockingPop() throws InterruptedException {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
                 while (!notifyingPop(buffer))
@@ -166,7 +174,7 @@ public class ObjectQueue<T> implements AutoCloseable {
         }
     }
 
-    public T peek() throws IOException {
+    public T peek() {
         return doWithBuffer(buffer -> {
             if (!innerPeek(buffer))
                 return null;

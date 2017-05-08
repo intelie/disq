@@ -125,7 +125,7 @@ public class DiskRawQueueTest {
         assertThat(queue.count()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
         assertThat(queue.remainingBytes()).isEqualTo(0);
-        assertThat(queue.remaningCount()).isEqualTo(0);
+        assertThat(queue.remainingCount()).isEqualTo(0);
 
         assertThat(push(queue, s)).isTrue();
 
@@ -145,7 +145,7 @@ public class DiskRawQueueTest {
         assertThat(queue.count()).isEqualTo(60);
         assertThat(queue.bytes()).isEqualTo(512 * 60);
         assertThat(queue.remainingBytes()).isEqualTo(61 * 512);
-        assertThat(queue.remaningCount()).isEqualTo(61);
+        assertThat(queue.remainingCount()).isEqualTo(61);
     }
 
     @Test

@@ -11,7 +11,7 @@ public interface RawQueue extends AutoCloseable {
 
     long remainingBytes();
 
-    long remaningCount();
+    long remainingCount();
 
     void clear() throws IOException;
 

@@ -69,7 +69,7 @@ public class DiskRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized long remaningCount() {
+    public synchronized long remainingCount() {
         ensureOpen();
         if (state.getCount() == 0) return maxSize / 4;
         double bytesPerElement = state.getBytes() / (double) state.getCount();
