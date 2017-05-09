@@ -341,6 +341,7 @@ public class DiskRawQueueTest {
 
         temp.getRoot().setWritable(true);
         queue.reopen();
+        queue.touch();
         assertThat(temp.getRoot().list()).containsOnly("state", "data05");
     }
 

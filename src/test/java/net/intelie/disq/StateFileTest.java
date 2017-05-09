@@ -146,7 +146,11 @@ public class StateFileTest {
         state.addWriteCount(42);
         state.addWriteCount(42);
         state.addReadCount(42);
+
+        assertThat(state.readFileEof()).isFalse();
         state.advanceReadFile(84);
+
+        assertThat(state.readFileEof()).isTrue();
 
         assertThat(state.getReadPosition()).isEqualTo(0);
         assertThat(state.getBytes()).isEqualTo(0);

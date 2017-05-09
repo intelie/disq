@@ -3,7 +3,7 @@ package net.intelie.disq;
 import java.io.IOException;
 
 public interface RawQueue extends AutoCloseable {
-    void reopen() throws IOException;
+    void reopen();
 
     long bytes();
 
@@ -12,6 +12,8 @@ public interface RawQueue extends AutoCloseable {
     long remainingBytes();
 
     long remainingCount();
+
+    void touch() throws IOException;
 
     void clear() throws IOException;
 

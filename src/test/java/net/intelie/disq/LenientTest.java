@@ -23,9 +23,9 @@ public class LenientTest {
 
         when(op.call())
                 .thenAnswer(new ThrowsException(new Error("abc")))
-                .thenAnswer(new Returns(true));
+                .thenAnswer(new Returns(42L));
 
-        assertThat(lenient.perform(op)).isEqualTo(true);
+        assertThat(lenient.perform(op)).isEqualTo(42);
 
         orderly.verify(op).call();
         orderly.verify(queue).reopen();

@@ -1,5 +1,7 @@
 package net.intelie.disq;
 
+import java.io.IOException;
+
 public class ArrayRawQueue implements RawQueue {
     private final byte[] memory;
     private final boolean deleteOldestOnOverflow;
@@ -12,6 +14,11 @@ public class ArrayRawQueue implements RawQueue {
 
     @Override
     public void reopen() {
+
+    }
+
+    @Override
+    public void touch() {
 
     }
 

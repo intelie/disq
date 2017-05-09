@@ -1,6 +1,7 @@
 package net.intelie.disq;
 
 import java.io.*;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 public class DataFileReader implements Closeable {
@@ -20,10 +21,6 @@ public class DataFileReader implements Closeable {
             position -= fis.skip(position);
     }
 
-    public boolean eof() throws IOException {
-        return position >= size();
-    }
-
     public long size() throws IOException {
         return fis.getChannel().size();
     }
@@ -33,7 +30,6 @@ public class DataFileReader implements Closeable {
     }
 
     private int internalRead(Buffer buffer, boolean peek) throws IOException {
-        if (eof()) return -1;
         if (peek) stream.mark(4);
         int size = stream.readInt();
         if (peek) stream.reset();

@@ -151,4 +151,8 @@ public class StateFile implements Closeable {
         }
         return false;
     }
+
+    public boolean readFileEof() {
+        return fileCounts[getReadFile()] <= 0;
+    }
 }

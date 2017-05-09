@@ -11,7 +11,6 @@ import java.io.*;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.not;
 
 public class ObjectQueueTest {
     @Rule
@@ -29,6 +28,8 @@ public class ObjectQueueTest {
         queue.close();
         queue.reopen();
 
+        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 230);
+        assertThat(queue.remainingCount()).isEqualTo(2683);
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.bytes()).isEqualTo(230);
         assertThat(queue.peek()).isEqualTo("test10");
@@ -38,55 +39,49 @@ public class ObjectQueueTest {
 
         assertThat(queue.count()).isEqualTo(0);
         assertThat(queue.bytes()).isEqualTo(230);
+        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 230);
+        assertThat(queue.remainingCount()).isEqualTo(15488);
         assertThat(queue.pop()).isNull();
         assertThat(queue.peek()).isNull();
     }
 
+    @Test
+    public void testWhenTheDirectoryIsReadOnly() throws Exception {
+        temp.getRoot().setWritable(false);
+
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
+        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false, 1000);
+
+        queue.reopen();
+        for (int i = 0; i < 20; i++)
+            assertThat(queue.push("test" + i)).isTrue();
+        for (int i = 0; i < 20; i++)
+            assertThat(queue.pop()).isEqualTo("test" + i);
+        assertThat(queue.pop()).isEqualTo(null);
+        assertThat(queue.peek()).isEqualTo(null);
+    }
+
     @Test(timeout = 3000)
-    public void testBlockingWrite() throws Exception {
+    public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
         ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 508);
 
-        Thread t1 = new Thread() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 200; i++) {
-                    try {
-                        System.out.println("WRITE " + i);
-                        queue.blockingPush(s + i);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
+        WriterThread t1 = new WriterThread(queue, s);
         t1.start();
         while (t1.getState() != Thread.State.TIMED_WAITING) {
-            Thread.sleep(50);
+            Thread.sleep(10);
         }
 
-        Thread t2 = new Thread() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 200; i++) {
-                    try {
-                        System.out.println("READ " + i);
-                        assertThat(queue.blockingPop()).isEqualTo(s + i);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
+        ReaderThread t2 = new ReaderThread(queue, s);
         t2.start();
 
-        t1.join();
-        t2.join();
+        t1.waitFinish();
+        t2.waitFinish();
     }
 
-    @Test
+    @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
         ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
@@ -103,47 +98,23 @@ public class ObjectQueueTest {
     }
 
     @Test(timeout = 3000)
-    public void testBlockingRead() throws Exception {
+    public void testBlockingRead() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
         ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 508);
 
-        Thread t2 = new Thread() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 200; i++) {
-                    try {
-                        System.out.println("READ " + i);
-                        assertThat(queue.blockingPop()).isEqualTo(s + i);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
+        ReaderThread t2 = new ReaderThread(queue, s);
         t2.start();
         while (t2.getState() != Thread.State.TIMED_WAITING) {
-            Thread.sleep(50);
+            Thread.sleep(10);
         }
 
-        Thread t1 = new Thread() {
-            @Override
-            public void run() {
-                for (int i = 0; i < 200; i++) {
-                    try {
-                        System.out.println("WRITE " + i);
-                        queue.blockingPush(s + i);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
+        WriterThread t1 = new WriterThread(queue, s);
         t1.start();
 
-        t1.join();
-        t2.join();
+        t1.waitFinish();
+        t2.waitFinish();
     }
 
     @Test
@@ -179,6 +150,62 @@ public class ObjectQueueTest {
         assertThat(new File(temp.getRoot(), "state").length()).isEqualTo(0);
         queue.flush();
         assertThat(new File(temp.getRoot(), "state").length()).isEqualTo(512);
+    }
+
+
+    private static abstract class ThrowableThread extends Thread {
+        private Throwable t;
+
+        public abstract void runThrowable() throws Throwable;
+
+        @Override
+        public void run() {
+            try {
+                runThrowable();
+            } catch (Throwable throwable) {
+                t = throwable;
+                t.printStackTrace();
+            }
+        }
+
+        public void waitFinish() throws Throwable {
+            join();
+            if (t != null) throw t;
+        }
+    }
+
+    private static class WriterThread extends ThrowableThread {
+        private final ObjectQueue<Object> queue;
+        private final String s;
+
+        public WriterThread(ObjectQueue<Object> queue, String s) {
+            this.queue = queue;
+            this.s = s;
+        }
+
+        @Override
+        public void runThrowable() throws InterruptedException {
+            for (int i = 0; i < 200; i++) {
+                queue.blockingPush(s + i);
+            }
+        }
+    }
+
+    private static class ReaderThread extends ThrowableThread {
+        private final ObjectQueue<Object> queue;
+        private final String s;
+
+        public ReaderThread(ObjectQueue<Object> queue, String s) {
+            this.queue = queue;
+            this.s = s;
+        }
+
+        @Override
+        public void runThrowable() throws Throwable {
+            for (int i = 0; i < 200; i++) {
+                assertThat(queue.blockingPop()).isEqualTo(s + i);
+            }
+        }
     }
 
     public class GsonSerializer implements Serializer<Object> {

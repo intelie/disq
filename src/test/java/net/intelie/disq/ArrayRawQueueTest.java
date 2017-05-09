@@ -13,6 +13,7 @@ public class ArrayRawQueueTest {
     public void reopenFlushCloseDoNothing() throws Exception {
         ArrayRawQueue queue = new ArrayRawQueue(10, true);
         queue.reopen();
+        queue.touch();
         queue.flush();
         queue.close();
     }

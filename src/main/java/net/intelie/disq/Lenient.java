@@ -9,13 +9,15 @@ public class Lenient {
         this.queue = queue;
     }
 
-    public boolean perform(Op supplier) throws IOException {
+    public long perform(Op supplier) throws IOException {
         try {
+            queue.touch();
             return supplier.call();
         } catch (Throwable e) {
             e.printStackTrace();
             queue.reopen();
             try {
+                queue.touch();
                 return supplier.call();
             } catch (Throwable e2) {
                 queue.reopen();
@@ -23,6 +25,15 @@ public class Lenient {
             }
         }
     }
+
+    public long performSafe(Op supplier, long defaultValue) {
+        try {
+            return perform(supplier);
+        } catch (Throwable e) {
+            return defaultValue;
+        }
+    }
+
 
     public void safeClose(AutoCloseable closeable) {
         try {
@@ -34,7 +45,7 @@ public class Lenient {
     }
 
     public interface Op {
-        boolean call() throws IOException;
+        long call() throws IOException;
     }
 
 
