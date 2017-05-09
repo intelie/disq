@@ -156,8 +156,8 @@ public class ObjectQueue<T> implements AutoCloseable {
         try {
             InputStream read = buffer.read();
             if (compress) read = new InflaterInputStream(read);
-            return serializer.deserialize(read);
-        } catch (IOException e) {
+            return (T) serializer.deserialize(read);
+        } catch (IOException | ClassCastException e) {
             e.printStackTrace();
             return null;
         }

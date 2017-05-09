@@ -20,6 +20,7 @@ public class Lenient {
                 queue.touch();
                 return supplier.call();
             } catch (Throwable e2) {
+                e2.printStackTrace();
                 queue.reopen();
                 throw e2;
             }

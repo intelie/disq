@@ -14,11 +14,18 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        try (ObjectQueue<String> queue = open()) {
+        ProcessingQueue<Object> queue = ProcessingQueue
+                .builder(System.out::println)
+                .build();
+
+        queue.submit("abc");
+
+
+        /*try (ObjectQueue<String> queue = open()) {
             queue.clear();
         }
         allWrites(100000);
-        allReads(100000);
+        allReads(100000);*/
     }
 
     private static void allReads(int n) throws IOException {

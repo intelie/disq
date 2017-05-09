@@ -47,18 +47,40 @@ public class ObjectQueueTest {
 
     @Test
     public void testWhenTheDirectoryIsReadOnly() throws Exception {
-        temp.getRoot().setWritable(false);
-
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false, 1000);
 
-        queue.reopen();
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 10; i++)
             assertThat(queue.push("test" + i)).isTrue();
-        for (int i = 0; i < 20; i++)
+
+        assertThat(queue.count()).isEqualTo(10);
+        assertThat(queue.remainingCount()).isEqualTo(5622);
+        assertThat(queue.bytes()).isEqualTo(110);
+        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 110);
+
+        new File(temp.getRoot(), "state").setWritable(false);
+        queue.reopen();
+
+
+        for (int i = 10; i < 20; i++)
+            assertThat(queue.push("test" + i)).isTrue();
+
+        assertThat(queue.count()).isEqualTo(10);
+        assertThat(queue.remainingCount()).isEqualTo(0);
+        assertThat(queue.bytes()).isEqualTo(120);
+        assertThat(queue.remainingBytes()).isEqualTo(0);
+
+        for (int i = 10; i < 20; i++)
             assertThat(queue.pop()).isEqualTo("test" + i);
+
         assertThat(queue.pop()).isEqualTo(null);
         assertThat(queue.peek()).isEqualTo(null);
+
+        new File(temp.getRoot(), "state").setWritable(true);
+        queue.reopen();
+
+        for (int i = 0; i < 10; i++)
+            assertThat(queue.pop()).isEqualTo("test" + i);
     }
 
     @Test(timeout = 3000)

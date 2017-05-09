@@ -5,15 +5,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class DiskRawQueue implements RawQueue {
-    private final Path directory;
     private final long maxSize;
     private final long dataFileLimit;
     private final Lenient lenient;
-
     private final boolean flushOnRead;
+
     private final boolean flushOnWrite;
     private final boolean deleteOldestOnOverflow;
 
+    private Path directory;
     private boolean closed = false;
     private StateFile state;
     private DataFileReader reader;
@@ -43,6 +43,8 @@ public class DiskRawQueue implements RawQueue {
     }
 
     private void internalOpen() throws IOException {
+        if (this.directory == null)
+            this.directory = Files.createTempDirectory("disq");
         internalClose();
         Files.createDirectories(this.directory);
         this.state = new StateFile(this.directory.resolve("state"));
