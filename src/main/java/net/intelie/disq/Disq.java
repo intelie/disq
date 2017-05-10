@@ -1,5 +1,6 @@
 package net.intelie.disq;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -10,12 +11,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-public class ProcessingQueue<T> {
+public class Disq<T> implements Closeable {
     private final Consumer<T> consumer;
-    private final ObjectQueue<?> queue;
+    private final ObjectQueue<MyRunnable<T>> queue;
     private final ThreadPoolExecutor executor;
 
-    public ProcessingQueue(Consumer<T> consumer, ObjectQueue<?> queue, ThreadPoolExecutor executor) {
+    public Disq(Consumer<T> consumer, ObjectQueue<MyRunnable<T>> queue, ThreadPoolExecutor executor) {
         this.consumer = consumer;
         this.queue = queue;
         this.executor = executor;
@@ -26,8 +27,23 @@ public class ProcessingQueue<T> {
     }
 
     public void submit(T obj) {
-        executor.submit(new MyRunnable<>(obj, consumer));
+        queue.push(new MyRunnable<>(obj, consumer));
     }
+
+    public void pause() {
+        queue.setPopPaused(true);
+    }
+
+    public void resume() {
+        queue.setPopPaused(false);
+    }
+
+    @Override
+    public void close() throws IOException {
+        queue.setPushPaused(true);
+        executor.shutdown();
+    }
+
 
     public static class Builder<T> {
         private final Consumer<T> consumer;
@@ -43,7 +59,7 @@ public class ProcessingQueue<T> {
         private int maxBufferCapacity = -1;
         private boolean compress = false;
         private int fallbackBufferCapacity = 0;
-        private int threads = 1;
+        private int threads = 2;
         private long threadKeepAlive = 60000;
         private ThreadFactory threadFactory = Executors.defaultThreadFactory();
 
@@ -51,16 +67,18 @@ public class ProcessingQueue<T> {
             this.consumer = consumer;
         }
 
-        public ProcessingQueue<T> build() {
+        public Disq<T> build() {
             DiskRawQueue rawQueue = new DiskRawQueue(
                     directory, maxSize, flushOnPop, flushOnPush, deleteOldestOnOverflow);
 
             ObjectQueue<MyRunnable<T>> objectQueue = new ObjectQueue<>(rawQueue,
                     new MySerializer<>(serializer, consumer), initialBufferCapacity, maxBufferCapacity, compress, fallbackBufferCapacity);
+            objectQueue.setPopPaused(true);
 
             PersistentBlockingQueue<Runnable> workQueue = new PersistentBlockingQueue(objectQueue);
-            return new ProcessingQueue<T>(consumer, objectQueue,
-                    new ThreadPoolExecutor(1, threads, threadKeepAlive, TimeUnit.MILLISECONDS, workQueue, threadFactory, new ThreadPoolExecutor.DiscardPolicy()));
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(threads, threads, 0, TimeUnit.MILLISECONDS, workQueue, threadFactory, new ThreadPoolExecutor.DiscardPolicy());
+            executor.prestartAllCoreThreads();
+            return new Disq<T>(consumer, objectQueue, executor);
         }
 
     }

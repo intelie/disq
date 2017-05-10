@@ -19,6 +19,7 @@ public class ObjectQueue<T> implements AutoCloseable {
     private final int initialBufferCapacity;
     private final int maxBufferCapacity;
     private final boolean compress;
+    private boolean popPaused, pushPaused;
 
     public ObjectQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
         this(queue, serializer, initialBufferCapacity, maxBufferCapacity, compress, 0);
@@ -32,6 +33,20 @@ public class ObjectQueue<T> implements AutoCloseable {
         this.maxBufferCapacity = maxBufferCapacity;
         this.compress = compress;
         this.pool = new ConcurrentLinkedQueue<>();
+    }
+
+    public void setPopPaused(boolean popPaused) {
+        synchronized (queue) {
+            this.popPaused = popPaused;
+            this.queue.notifyAll();
+        }
+    }
+
+    public void setPushPaused(boolean pushPaused) {
+        synchronized (queue) {
+            this.pushPaused = pushPaused;
+            this.queue.notifyAll();
+        }
     }
 
     public void reopen() throws IOException {
@@ -135,6 +150,7 @@ public class ObjectQueue<T> implements AutoCloseable {
     }
 
     private boolean notifyingPop(Buffer buffer) {
+        if (popPaused) return false;
         if (!innerPop(buffer))
             return false;
         else {
@@ -144,6 +160,7 @@ public class ObjectQueue<T> implements AutoCloseable {
     }
 
     private boolean notifyingPush(Buffer buffer) {
+        if (pushPaused) return false;
         if (!innerPush(buffer))
             return false;
         else {
@@ -183,6 +200,7 @@ public class ObjectQueue<T> implements AutoCloseable {
     }
 
     private boolean innerPeek(Buffer buffer) {
+        if (popPaused) return false;
         if (fallback.peek(buffer)) return true;
 
         try {
