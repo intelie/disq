@@ -7,9 +7,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class PersistentBlockingQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> {
-    private final ObjectQueue<T> queue;
+    private final PersistentQueue<T> queue;
 
-    public PersistentBlockingQueue(ObjectQueue<T> queue) {
+    public PersistentBlockingQueue(PersistentQueue<T> queue) {
         this.queue = queue;
     }
 

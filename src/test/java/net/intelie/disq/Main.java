@@ -8,9 +8,9 @@ import java.nio.file.Paths;
 public class Main {
     static String s = Strings.repeat("a", 1000);
 
-    private static ObjectQueue<String> open() throws IOException {
+    private static PersistentQueue<String> open() throws IOException {
         DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, true, true, false);
-        return new ObjectQueue<>(bq, new DefaultSerializer<>(), 16000, -1, false);
+        return new PersistentQueue<>(bq, new DefaultSerializer<>(), 16000, -1, false);
     }
 
     public static void main(String[] args) throws Exception {
@@ -30,7 +30,7 @@ public class Main {
         }
 
 
-        /*try (ObjectQueue<String> queue = open()) {
+        /*try (PersistentQueue<String> queue = open()) {
             queue.clear();
         }
         allWrites(100000);
@@ -40,7 +40,7 @@ public class Main {
     private static void allReads(int n) throws IOException {
         long start = System.nanoTime();
 
-        try (ObjectQueue<String> queue = open()) {
+        try (PersistentQueue<String> queue = open()) {
             System.out.println(queue.count() + " " + queue.bytes());
 
             for (int i = 0; i < n; i++) {
@@ -59,7 +59,7 @@ public class Main {
     private static void allWrites(int n) throws IOException {
         long start = System.nanoTime();
 
-        try (ObjectQueue<String> queue = open()) {
+        try (PersistentQueue<String> queue = open()) {
             System.out.println(queue.count() + " " + queue.bytes());
 
             for (int i = 0; i < n; i++) {

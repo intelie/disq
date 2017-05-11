@@ -12,14 +12,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ObjectQueueTest {
+public class PersistentQueueTest {
     @Rule
     public TemporaryFolder temp = new TemporaryFolder();
 
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -48,7 +48,7 @@ public class ObjectQueueTest {
     @Test
     public void testWhenTheDirectoryIsReadOnly() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false, 1000);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false, 1000);
 
         for (int i = 0; i < 10; i++)
             assertThat(queue.push("test" + i)).isTrue();
@@ -86,7 +86,7 @@ public class ObjectQueueTest {
     @Test(timeout = 3000)
     public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 508);
 
@@ -106,7 +106,7 @@ public class ObjectQueueTest {
     @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 506);
 
@@ -122,7 +122,7 @@ public class ObjectQueueTest {
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 508);
 
@@ -142,7 +142,7 @@ public class ObjectQueueTest {
     @Test
     public void canPushBigCompressing() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, true);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, true);
 
         queue.push(Strings.repeat("a", 10000));
 
@@ -152,7 +152,7 @@ public class ObjectQueueTest {
     @Test
     public void canClear() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -164,7 +164,7 @@ public class ObjectQueueTest {
     @Test
     public void canAvoidFlush() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        ObjectQueue<Object> queue = new ObjectQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -197,10 +197,10 @@ public class ObjectQueueTest {
     }
 
     private static class WriterThread extends ThrowableThread {
-        private final ObjectQueue<Object> queue;
+        private final PersistentQueue<Object> queue;
         private final String s;
 
-        public WriterThread(ObjectQueue<Object> queue, String s) {
+        public WriterThread(PersistentQueue<Object> queue, String s) {
             this.queue = queue;
             this.s = s;
         }
@@ -214,10 +214,10 @@ public class ObjectQueueTest {
     }
 
     private static class ReaderThread extends ThrowableThread {
-        private final ObjectQueue<Object> queue;
+        private final PersistentQueue<Object> queue;
         private final String s;
 
-        public ReaderThread(ObjectQueue<Object> queue, String s) {
+        public ReaderThread(PersistentQueue<Object> queue, String s) {
             this.queue = queue;
             this.s = s;
         }

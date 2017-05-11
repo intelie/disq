@@ -13,10 +13,10 @@ import java.util.function.Consumer;
 
 public class Disq<T> implements Closeable {
     private final Consumer<T> consumer;
-    private final ObjectQueue<MyRunnable<T>> queue;
+    private final PersistentQueue<MyRunnable<T>> queue;
     private final ThreadPoolExecutor executor;
 
-    public Disq(Consumer<T> consumer, ObjectQueue<MyRunnable<T>> queue, ThreadPoolExecutor executor) {
+    public Disq(Consumer<T> consumer, PersistentQueue<MyRunnable<T>> queue, ThreadPoolExecutor executor) {
         this.consumer = consumer;
         this.queue = queue;
         this.executor = executor;
@@ -60,7 +60,6 @@ public class Disq<T> implements Closeable {
         private boolean compress = false;
         private int fallbackBufferCapacity = 0;
         private int threads = 2;
-        private long threadKeepAlive = 60000;
         private ThreadFactory threadFactory = Executors.defaultThreadFactory();
 
         public Builder(Consumer<T> consumer) {
@@ -71,14 +70,14 @@ public class Disq<T> implements Closeable {
             DiskRawQueue rawQueue = new DiskRawQueue(
                     directory, maxSize, flushOnPop, flushOnPush, deleteOldestOnOverflow);
 
-            ObjectQueue<MyRunnable<T>> objectQueue = new ObjectQueue<>(rawQueue,
+            PersistentQueue<MyRunnable<T>> persistentQueue = new PersistentQueue<>(rawQueue,
                     new MySerializer<>(serializer, consumer), initialBufferCapacity, maxBufferCapacity, compress, fallbackBufferCapacity);
-            objectQueue.setPopPaused(true);
+            persistentQueue.setPopPaused(true);
 
-            PersistentBlockingQueue<Runnable> workQueue = new PersistentBlockingQueue(objectQueue);
+            PersistentBlockingQueue<Runnable> workQueue = new PersistentBlockingQueue(persistentQueue);
             ThreadPoolExecutor executor = new ThreadPoolExecutor(threads, threads, 0, TimeUnit.MILLISECONDS, workQueue, threadFactory, new ThreadPoolExecutor.DiscardPolicy());
             executor.prestartAllCoreThreads();
-            return new Disq<T>(consumer, objectQueue, executor);
+            return new Disq<T>(consumer, persistentQueue, executor);
         }
 
     }

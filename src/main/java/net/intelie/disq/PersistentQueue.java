@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
-public class ObjectQueue<T> implements AutoCloseable {
+public class PersistentQueue<T> implements AutoCloseable {
     private static final int MAX_WAIT = 10000;
 
     private final ConcurrentLinkedQueue<WeakReference<Buffer>> pool;
@@ -21,11 +21,11 @@ public class ObjectQueue<T> implements AutoCloseable {
     private final boolean compress;
     private boolean popPaused, pushPaused;
 
-    public ObjectQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
+    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
         this(queue, serializer, initialBufferCapacity, maxBufferCapacity, compress, 0);
     }
 
-    public ObjectQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress, int fallbackBufferCapacity) {
+    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress, int fallbackBufferCapacity) {
         this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
         this.queue = queue;
         this.serializer = serializer;

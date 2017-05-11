@@ -1,11 +1,16 @@
 package net.intelie.disq;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 
 public class Buffer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Buffer.class);
+
     private final int maxCapacity;
     private byte[] buf;
     private int count;
@@ -71,7 +76,7 @@ public class Buffer {
         if (maxCapacity >= 0) {
             newCapacity = Math.min(newCapacity, maxCapacity);
             if (newCapacity <= this.buf.length) {
-                System.out.println(capacity + " " + buf.length + " " + newCapacity + " " + maxCapacity);
+                LOGGER.info("Buffer overflowed. Len={}, Max={}", buf.length, maxCapacity);
                 throw new IllegalStateException("Maximum buffer capacity reached: " + newCapacity + " bytes");
             }
         }
