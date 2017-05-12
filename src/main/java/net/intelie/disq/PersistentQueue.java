@@ -1,5 +1,8 @@
 package net.intelie.disq;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -10,6 +13,8 @@ import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 public class PersistentQueue<T> implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PersistentQueue.class);
+
     private static final int MAX_WAIT = 10000;
 
     private final ConcurrentLinkedQueue<WeakReference<Buffer>> pool;
@@ -174,8 +179,8 @@ public class PersistentQueue<T> implements AutoCloseable {
             InputStream read = buffer.read();
             if (compress) read = new InflaterInputStream(read);
             return (T) serializer.deserialize(read);
-        } catch (IOException | ClassCastException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            LOGGER.info("Error deserializing", e);
             return null;
         }
     }
@@ -186,8 +191,8 @@ public class PersistentQueue<T> implements AutoCloseable {
             OutputStream write = buffer.write();
             if (compress) write = new DeflaterOutputStream(write);
             serializer.serialize(write, obj);
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            LOGGER.info("Error serializing", e);
         }
     }
 
@@ -206,7 +211,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         try {
             return queue.peek(buffer);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.info("Error peeking", e);
             return false;
         }
     }
@@ -217,7 +222,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         try {
             return queue.pop(buffer);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.info("Error popping", e);
             return false;
         }
     }
@@ -226,7 +231,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         try {
             return queue.push(buffer);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.info("Error pushing", e);
             return fallback.push(buffer);
         }
     }

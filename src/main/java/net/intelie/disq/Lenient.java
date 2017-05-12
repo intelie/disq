@@ -1,8 +1,15 @@
 package net.intelie.disq;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class Lenient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Lenient.class);
+
     private final DiskRawQueue queue;
 
     public Lenient(DiskRawQueue queue) {
@@ -14,13 +21,13 @@ public class Lenient {
             queue.touch();
             return supplier.call();
         } catch (Throwable e) {
-            e.printStackTrace();
+            LOGGER.info("First try queue operation error", e);
             queue.reopen();
             try {
                 queue.touch();
                 return supplier.call();
             } catch (Throwable e2) {
-                e2.printStackTrace();
+                LOGGER.info("Second try queue operation error", e2);
                 queue.reopen();
                 throw e2;
             }
@@ -41,7 +48,15 @@ public class Lenient {
             if (closeable != null)
                 closeable.close();
         } catch (Throwable e) {
-            e.printStackTrace();
+            LOGGER.info("Error closing closeable", e);
+        }
+    }
+
+    public void safeDelete(Path directory) {
+        try {
+            Files.walkFileTree(directory, new DeleteFileVisitor());
+        } catch (Throwable e) {
+            LOGGER.info("Error deleting directory", e);
         }
     }
 

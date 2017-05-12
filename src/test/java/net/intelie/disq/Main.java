@@ -16,17 +16,20 @@ public class Main {
     public static void main(String[] args) throws Exception {
         try (Disq<Object> queue = Disq
                 .builder(x -> {
-                    //System.out.println(Thread.currentThread().getId() + " " + x);
+                    System.out.println(Thread.currentThread().getId() + " " + x);
                 })
+                .setDirectory("/home/juanplopes/Downloads/queue")
+                .setThreadCount(16)
                 .build()) {
 
-            String s = Strings.repeat("a", 2000);
-            for (int i = 0; i < 100000; i++) {
-                queue.submit(s);
+            String s = Strings.repeat("a", 10);
+            for (int i = 0; i < 1000; i++) {
+                queue.submit(s + i);
             }
             //Thread.sleep(100000);
             System.out.println("OAAA");
             queue.resume();
+            //Thread.sleep(500);
         }
 
 

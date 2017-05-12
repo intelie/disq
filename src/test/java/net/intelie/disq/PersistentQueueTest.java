@@ -10,7 +10,12 @@ import org.junit.rules.TemporaryFolder;
 import java.io.*;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.anyOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class PersistentQueueTest {
     @Rule
@@ -139,6 +144,39 @@ public class PersistentQueueTest {
         t2.waitFinish();
     }
 
+    @Test(timeout = 3000)
+    public void testBlockingBoth() throws Throwable {
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        queue.setPopPaused(true);
+        queue.setPushPaused(true);
+
+        String s = Strings.repeat("a", 502);
+
+        ReaderThread t2 = new ReaderThread(queue, s);
+        t2.start();
+
+        WriterThread t1 = new WriterThread(queue, s);
+        t1.start();
+
+        while (t1.getState() != Thread.State.TIMED_WAITING)
+            Thread.sleep(10);
+        while (t2.getState() != Thread.State.TIMED_WAITING)
+            Thread.sleep(10);
+
+        assertThat(queue.count()).isEqualTo(0);
+        queue.setPushPaused(false);
+        while(queue.count() < 121)
+            Thread.sleep(10);
+
+        queue.setPopPaused(false);
+        while(queue.count() > 0)
+            Thread.sleep(10);
+
+        t1.waitFinish();
+        t2.waitFinish();
+    }
+
     @Test
     public void canPushBigCompressing() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
@@ -174,6 +212,20 @@ public class PersistentQueueTest {
         assertThat(new File(temp.getRoot(), "state").length()).isEqualTo(512);
     }
 
+    @Test
+    public void serializerException() throws Exception {
+        Serializer<Object> serializer = mock(Serializer.class);
+        doThrow(new RuntimeException()).when(serializer).serialize(any(), any());
+        doThrow(new RuntimeException()).when(serializer).deserialize(any());
+
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, serializer, 32, 1 << 16, false);
+
+        queue.push("abc");
+        queue.pop();
+
+
+    }
 
     private static abstract class ThrowableThread extends Thread {
         private Throwable t;

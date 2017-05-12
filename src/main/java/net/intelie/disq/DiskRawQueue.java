@@ -13,6 +13,7 @@ public class DiskRawQueue implements RawQueue {
     private final boolean flushOnWrite;
     private final boolean deleteOldestOnOverflow;
 
+    private boolean temp;
     private Path directory;
     private boolean closed = false;
     private StateFile state;
@@ -32,6 +33,7 @@ public class DiskRawQueue implements RawQueue {
         this.flushOnRead = flushOnPop;
         this.flushOnWrite = flushOnPush;
         this.deleteOldestOnOverflow = deleteOldestOnOverflow;
+        this.temp = false;
 
         reopen();
     }
@@ -42,10 +44,16 @@ public class DiskRawQueue implements RawQueue {
         closed = false;
     }
 
+    public Path path() {
+        return directory;
+    }
+
     private void internalOpen() throws IOException {
-        if (this.directory == null)
-            this.directory = Files.createTempDirectory("disq");
         internalClose();
+        if (this.directory == null) {
+            this.directory = Files.createTempDirectory("disq");
+            this.temp = true;
+        }
         Files.createDirectories(this.directory);
         this.state = new StateFile(this.directory.resolve("state"));
         this.writer = openWriter();
@@ -201,6 +209,12 @@ public class DiskRawQueue implements RawQueue {
 
         lenient.safeClose(state);
         state = null;
+
+        if (temp) {
+            lenient.safeDelete(directory);
+            directory = null;
+            temp = false;
+        }
     }
 
     private boolean willOverflow(Buffer buffer) throws IOException {

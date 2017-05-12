@@ -6,6 +6,7 @@ import org.mockito.internal.stubbing.answers.Returns;
 import org.mockito.internal.stubbing.answers.ThrowsException;
 
 import java.io.Closeable;
+import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,5 +59,10 @@ public class LenientTest {
 
         new Lenient(null).safeClose(closeable);
         verify(closeable).close();
+    }
+
+    @Test
+    public void safeDeleteOnNonExistingFile() throws Exception {
+        new Lenient(null).safeDelete(Paths.get("/whatever/does/not/exist"));
     }
 }

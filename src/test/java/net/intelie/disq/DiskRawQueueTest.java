@@ -9,6 +9,8 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,11 +52,62 @@ public class DiskRawQueueTest {
 
             push(queue, s);
             assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((i + 1) * 10);
-            assertStateFile(0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+            assertStateFile(temp.getRoot(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
 
             assertThat(pop(queue)).isEqualTo(s);
-            assertStateFile(0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
+            assertStateFile(temp.getRoot(), 0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
         }
+    }
+
+    @Test
+    public void testSimplePushsAndPopsOnTemporaryDir() throws Exception {
+        Path saved;
+        try (DiskRawQueue queue = new DiskRawQueue(null, 1000)) {
+            assertThat(queue.path()).isNull();
+
+            for (int i = 0; i < 20; i++) {
+                String s = "test" + String.format("%02x", i);
+
+                push(queue, s);
+                assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * 10);
+                assertStateFile(queue.path().toFile(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+
+                assertThat(pop(queue)).isEqualTo(s);
+                assertStateFile(queue.path().toFile(), 0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
+            }
+
+            assertThat(saved = queue.path()).isNotNull();
+            assertThat(Files.exists(saved)).isTrue();
+        }
+        assertThat(Files.exists(saved)).isFalse();
+    }
+
+    @Test
+    public void testSimplePushsAndPopsOnTemporaryDirCantDelete() throws Exception {
+        Path saved;
+        try (DiskRawQueue queue = new DiskRawQueue(null, 1000)) {
+            assertThat(queue.path()).isNull();
+
+            for (int i = 0; i < 20; i++) {
+                String s = "test" + String.format("%02x", i);
+
+                push(queue, s);
+                assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * 10);
+                assertStateFile(queue.path().toFile(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+
+                assertThat(pop(queue)).isEqualTo(s);
+                assertStateFile(queue.path().toFile(), 0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
+            }
+
+            assertThat(saved = queue.path()).isNotNull();
+            assertThat(Files.exists(saved)).isTrue();
+
+            queue.path().toFile().setWritable(false);
+        }
+        assertThat(Files.exists(saved)).isTrue();
+        saved.toFile().setWritable(true);
+        new Lenient(null).safeDelete(saved);
+        assertThat(Files.exists(saved)).isFalse();
     }
 
     @Test
@@ -67,19 +120,19 @@ public class DiskRawQueueTest {
 
             push(queue, s);
             assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((i + 1) * 10);
-            assertStateFile(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            assertStateFile(temp.getRoot(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
             assertThat(pop(queue)).isEqualTo(s);
-            assertStateFile(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            assertStateFile(temp.getRoot(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
         queue.flush();
-        assertStateFile(0, 0, 200, 200, 0, 200, 0, 0, 0);
+        assertStateFile(temp.getRoot(), 0, 0, 200, 200, 0, 200, 0, 0, 0);
 
     }
 
-    private void assertStateFile(int readFile, int writeFile, int readPosition, int writePosition, int count, int bytes, int c1, int c2, int c3) throws IOException {
-        DataInputStream data = new DataInputStream(new FileInputStream(new File(temp.getRoot(), "state")));
+    private void assertStateFile(File root, int readFile, int writeFile, int readPosition, int writePosition, int count, int bytes, int c1, int c2, int c3) throws IOException {
+        DataInputStream data = new DataInputStream(new FileInputStream(new File(root, "state")));
         assertThat(data.readShort()).isEqualTo((short) readFile);
         assertThat(data.readShort()).isEqualTo((short) writeFile);
         assertThat(data.readInt()).isEqualTo(readPosition);
