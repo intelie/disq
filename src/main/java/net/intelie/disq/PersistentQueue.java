@@ -85,8 +85,8 @@ public class PersistentQueue<T> implements AutoCloseable {
         fallback.flush();
     }
 
-    public T blockingPop(long amount, TimeUnit unit) throws InterruptedException {
-        return doWithBuffer(buffer -> {
+    public T blockingPop(long amount, TimeUnit unit) throws InterruptedException, IOException {
+        return this.<T, InterruptedException>doWithBuffer(buffer -> {
             synchronized (queue) {
                 long target = System.currentTimeMillis() + unit.toMillis(amount);
                 while (!notifyingPop(buffer)) {
@@ -99,8 +99,8 @@ public class PersistentQueue<T> implements AutoCloseable {
         });
     }
 
-    public T blockingPop() throws InterruptedException {
-        return doWithBuffer(buffer -> {
+    public T blockingPop() throws InterruptedException, IOException {
+        return this.<T, InterruptedException>doWithBuffer(buffer -> {
             synchronized (queue) {
                 while (!notifyingPop(buffer))
                     queue.wait(MAX_WAIT);
@@ -109,8 +109,8 @@ public class PersistentQueue<T> implements AutoCloseable {
         });
     }
 
-    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException {
-        return doWithBuffer(buffer -> {
+    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
+        return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
                 long target = System.currentTimeMillis() + unit.toMillis(amount);
@@ -124,8 +124,8 @@ public class PersistentQueue<T> implements AutoCloseable {
         });
     }
 
-    public boolean blockingPush(T obj) throws InterruptedException {
-        return doWithBuffer(buffer -> {
+    public boolean blockingPush(T obj) throws InterruptedException, IOException {
+        return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
                 while (!notifyingPush(buffer))
@@ -135,7 +135,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         });
     }
 
-    public T pop() {
+    public T pop() throws IOException {
         return doWithBuffer(buffer -> {
             synchronized (queue) {
                 if (!notifyingPop(buffer)) return null;
@@ -144,7 +144,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         });
     }
 
-    public boolean push(T obj) {
+    public boolean push(T obj) throws IOException {
         return doWithBuffer(buffer -> {
             serialize(obj, buffer);
             synchronized (queue) {
@@ -174,29 +174,23 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
     }
 
-    private T deserialize(Buffer buffer) {
-        try {
-            InputStream read = buffer.read();
-            if (compress) read = new InflaterInputStream(read);
-            return (T) serializer.deserialize(read);
-        } catch (Exception e) {
-            LOGGER.info("Error deserializing", e);
-            return null;
-        }
+    private T deserialize(Buffer buffer) throws IOException {
+        InputStream read = buffer.read();
+        if (compress) read = new InflaterInputStream(read);
+        return (T) serializer.deserialize(read);
     }
 
-    private void serialize(T obj, Buffer buffer) {
-        try {
-            buffer.setCount(0, false);
-            OutputStream write = buffer.write();
-            if (compress) write = new DeflaterOutputStream(write);
-            serializer.serialize(write, obj);
-        } catch (Exception e) {
-            LOGGER.info("Error serializing", e);
-        }
+    private void serialize(T obj, Buffer buffer) throws IOException {
+        if (obj == null)
+            throw new NullPointerException("Null elements not allowed in persistent queue.");
+
+        buffer.setCount(0, false);
+        OutputStream write = buffer.write();
+        if (compress) write = new DeflaterOutputStream(write);
+        serializer.serialize(write, obj);
     }
 
-    public T peek() {
+    public T peek() throws IOException {
         return doWithBuffer(buffer -> {
             if (!innerPeek(buffer))
                 return null;
@@ -236,7 +230,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
     }
 
-    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<Q, E> op) throws E {
+    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<Q, E> op) throws IOException, E {
         Buffer buffer = null;
         WeakReference<Buffer> ref = null;
 
@@ -267,6 +261,6 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     private interface BufferOp<Q, E extends Throwable> {
-        Q call(Buffer buffer) throws E;
+        Q call(Buffer buffer) throws E, IOException;
     }
 }

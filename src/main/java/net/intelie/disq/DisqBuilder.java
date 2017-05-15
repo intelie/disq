@@ -95,7 +95,7 @@ public class DisqBuilder<T> {
     }
 
     public Disq<T> build() {
-        return build(true);
+        return build(false);
     }
 
     public Disq<T> build(boolean paused) {

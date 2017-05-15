@@ -33,7 +33,7 @@ public class Disq<T> implements Closeable {
         return queue.remainingBytes();
     }
 
-    public void submit(T obj) {
+    public void submit(T obj) throws IOException {
         queue.push(obj);
     }
 

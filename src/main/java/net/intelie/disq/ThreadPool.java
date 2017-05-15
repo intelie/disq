@@ -33,8 +33,8 @@ public class ThreadPool<T> implements Closeable {
                         try {
                             obj = queue.blockingPop();
                         } catch (InterruptedException ignored) {
-                            continue;
                         }
+
                         synchronized (shutdownLock) {
                             boolean interrupted = Thread.interrupted();
                             try {

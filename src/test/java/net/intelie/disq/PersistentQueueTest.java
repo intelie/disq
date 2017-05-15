@@ -10,12 +10,11 @@ import org.junit.rules.TemporaryFolder;
 import java.io.*;
 import java.util.concurrent.TimeUnit;
 
-import static org.assertj.core.api.Assertions.anyOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class PersistentQueueTest {
     @Rule
@@ -48,6 +47,16 @@ public class PersistentQueueTest {
         assertThat(queue.remainingCount()).isEqualTo(15488);
         assertThat(queue.pop()).isNull();
         assertThat(queue.peek()).isNull();
+    }
+
+    @Test
+    public void cannotPushNull() throws Exception {
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+
+        assertThatThrownBy(()->queue.push(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("Null elements not allowed in persistent queue.");
     }
 
     @Test
@@ -166,11 +175,11 @@ public class PersistentQueueTest {
 
         assertThat(queue.count()).isEqualTo(0);
         queue.setPushPaused(false);
-        while(queue.count() < 121)
+        while (queue.count() < 121)
             Thread.sleep(10);
 
         queue.setPopPaused(false);
-        while(queue.count() > 0)
+        while (queue.count() > 0)
             Thread.sleep(10);
 
         t1.waitFinish();
@@ -214,17 +223,22 @@ public class PersistentQueueTest {
 
     @Test
     public void serializerException() throws Exception {
+        RuntimeException exc1 = new RuntimeException();
+        RuntimeException exc2 = new RuntimeException();
         Serializer<Object> serializer = mock(Serializer.class);
-        doThrow(new RuntimeException()).when(serializer).serialize(any(), any());
-        doThrow(new RuntimeException()).when(serializer).deserialize(any());
+        doThrow(exc1).when(serializer).serialize(any(), any());
+        doThrow(exc2).when(serializer).deserialize(any());
 
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
+        bq.push(new Buffer());
+
         PersistentQueue<Object> queue = new PersistentQueue<>(bq, serializer, 32, 1 << 16, false);
 
-        queue.push("abc");
-        queue.pop();
-
-
+        assertThat(queue.count()).isEqualTo(1);
+        assertThatThrownBy(() -> queue.push("abc")).isEqualTo(exc1);
+        assertThat(queue.count()).isEqualTo(1);
+        assertThatThrownBy(() -> queue.pop()).isEqualTo(exc2);
+        assertThat(queue.count()).isEqualTo(0);
     }
 
     private static abstract class ThrowableThread extends Thread {
@@ -258,7 +272,7 @@ public class PersistentQueueTest {
         }
 
         @Override
-        public void runThrowable() throws InterruptedException {
+        public void runThrowable() throws Exception {
             for (int i = 0; i < 200; i++) {
                 queue.blockingPush(s + i);
             }
