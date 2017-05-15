@@ -26,28 +26,7 @@ public class ThreadPool<T> implements Closeable {
 
         for (int i = 0; i < threads; i++) {
             Object shutdownLock = new Object();
-            Thread thread = factory.newThread(() -> {
-                while (open) {
-                    try {
-                        T obj = null;
-                        try {
-                            obj = queue.blockingPop();
-                        } catch (InterruptedException ignored) {
-                        }
-
-                        synchronized (shutdownLock) {
-                            boolean interrupted = Thread.interrupted();
-                            try {
-                                processor.process(obj);
-                            } finally {
-                                if (interrupted) Thread.currentThread().interrupt();
-                            }
-                        }
-                    } catch (Throwable e) {
-                        LOGGER.info("Exception processing element", e);
-                    }
-                }
-            });
+            Thread thread = factory.newThread(new WorkerRunnable(queue, shutdownLock, processor));
             this.locks.add(shutdownLock);
             this.threads.add(thread);
 
@@ -61,6 +40,44 @@ public class ThreadPool<T> implements Closeable {
         for (int i = 0; i < threads.size(); i++) {
             synchronized (locks.get(i)) {
                 threads.get(i).interrupt();
+            }
+        }
+    }
+
+    private class WorkerRunnable implements Runnable {
+        private final PersistentQueue<T> queue;
+        private final Object shutdownLock;
+        private final Processor<T> processor;
+
+        public WorkerRunnable(PersistentQueue<T> queue, Object shutdownLock, Processor<T> processor) {
+            this.queue = queue;
+            this.shutdownLock = shutdownLock;
+            this.processor = processor;
+        }
+
+        @Override
+        public void run() {
+            while (open) {
+                try {
+                    T obj = null;
+                    try {
+                        obj = queue.blockingPop();
+                    } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
+                        continue;
+                    }
+
+                    synchronized (shutdownLock) {
+                        boolean interrupted = Thread.interrupted();
+                        try {
+                            processor.process(obj);
+                        } finally {
+                            if (interrupted) Thread.currentThread().interrupt();
+                        }
+                    }
+                } catch (Throwable e) {
+                    LOGGER.info("Exception processing element", e);
+                }
             }
         }
     }
