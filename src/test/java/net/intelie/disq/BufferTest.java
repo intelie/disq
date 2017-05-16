@@ -32,6 +32,15 @@ public class BufferTest {
     }
 
     @Test
+    public void testSetCapacityGreaterThanWhatIsAllowed() throws Exception {
+        Buffer buffer = new Buffer(100, 1000);
+
+        assertThatThrownBy(() -> buffer.ensureCapacity(1001, false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("1000");
+    }
+
+    @Test
     public void testWriteSmallString() throws Exception {
         Buffer buffer = new Buffer();
 
@@ -54,8 +63,8 @@ public class BufferTest {
 
         assertThatThrownBy(() -> stream.write('a'))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Maximum buffer capacity")
-                .hasMessageContaining("300 bytes");
+                .hasMessageContaining("Buffer overflowed")
+                .hasMessageContaining("301/300 bytes");
     }
 
     @Test

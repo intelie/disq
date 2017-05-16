@@ -70,19 +70,22 @@ public class Buffer {
 
     public void ensureCapacity(int capacity, boolean preserve) {
         if (capacity <= buf.length) return;
-        int newCapacity = (1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity) - 1));
-        if (newCapacity < capacity) newCapacity <<= 1;
+        int newCapacity = findBestNewCapacity(capacity);
 
-        if (maxCapacity >= 0) {
-            newCapacity = Math.min(newCapacity, maxCapacity);
-            if (newCapacity <= this.buf.length) {
-                LOGGER.info("Buffer overflowed. Len={}, Max={}", buf.length, maxCapacity);
-                throw new IllegalStateException("Maximum buffer capacity reached: " + newCapacity + " bytes");
-            }
+        if (capacity > newCapacity) {
+            LOGGER.info("Buffer overflowed. Len={}, Max={}", capacity, maxCapacity);
+            throw new IllegalStateException("Buffer overflowed: " + capacity + "/" + maxCapacity + " bytes");
         }
 
         if (preserve) buf = Arrays.copyOf(buf, newCapacity);
         else buf = new byte[newCapacity];
+    }
+
+    private int findBestNewCapacity(int capacity) {
+        int newCapacity = (1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity) - 1));
+        if (newCapacity < capacity) newCapacity <<= 1;
+        if (maxCapacity >= 0) newCapacity = Math.min(newCapacity, maxCapacity);
+        return newCapacity;
     }
 
     public OutputStream write() {

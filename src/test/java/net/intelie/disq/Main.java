@@ -4,6 +4,8 @@ import com.google.common.base.Strings;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Main {
     static String s = Strings.repeat("a", 1000);
@@ -14,24 +16,44 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        try (Disq<Object> queue = Disq
+        long start = System.nanoTime();
+
+        Map<String, Integer> map = new HashMap<String, Integer>() {
+            @Override
+            public Integer get(Object key) {
+                return containsKey(key) ? super.get(key) : 0;
+            }
+        };
+
+        Disq<Object> queue = Disq
                 .builder(x -> {
-                    System.out.println(Thread.currentThread().getId() + " " + x);
+                    //  System.out.println(Thread.currentThread().getId() + " " + x);
+                    map.put(Thread.currentThread().getName(), map.get(Thread.currentThread().getName()) + 1);
+                    Thread.sleep(1);
                 })
                 .setDirectory("/home/juanplopes/Downloads/queue")
-                .setThreadCount(16)
-                .build()) {
+                .setNamedThreadFactory("test-%d")
+                .setMaxSize(1 << 28)
+                .setThreadCount(10)
+                .setDeleteOldestOnOverflow(true)
+                .build(true);
 
-            String s = Strings.repeat("a", 10);
-            for (int i = 0; i < 1000; i++) {
-                queue.submit(s + i);
-            }
-            //Thread.sleep(100000);
-            System.out.println("OAAA");
-            queue.resume();
-            //Thread.sleep(500);
+        String s = Strings.repeat("a", 10);
+        for (int i = 0; i < 10000; i++) {
+            queue.submit(s + i);
         }
+        //Thread.sleep(100000);
+        System.out.println("OAAA " + (System.nanoTime() - start) / 1e9 + " " + queue.count());
+        queue.resume();
+        start = System.nanoTime();
 
+        while (queue.count() > 0)
+            Thread.sleep(100);
+
+        System.out.println(map);
+        System.out.println("OAAA " + (System.nanoTime() - start) / 1e9);
+
+        queue.close();
 
         /*try (PersistentQueue<String> queue = open()) {
             queue.clear();

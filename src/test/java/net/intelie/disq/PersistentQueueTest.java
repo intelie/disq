@@ -25,6 +25,9 @@ public class PersistentQueueTest {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
 
+        assertThat(queue.rawQueue()).isEqualTo(bq);
+        assertThat(queue.fallbackQueue()).isInstanceOf(ArrayRawQueue.class);
+
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
         for (int i = 0; i < 10; i++)

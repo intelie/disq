@@ -40,6 +40,14 @@ public class PersistentQueue<T> implements AutoCloseable {
         this.pool = new ConcurrentLinkedQueue<>();
     }
 
+    public RawQueue rawQueue() {
+        return queue;
+    }
+
+    public ArrayRawQueue fallbackQueue() {
+        return fallback;
+    }
+
     public void setPopPaused(boolean popPaused) {
         synchronized (queue) {
             this.popPaused = popPaused;
@@ -187,7 +195,11 @@ public class PersistentQueue<T> implements AutoCloseable {
         buffer.setCount(0, false);
         OutputStream write = buffer.write();
         if (compress) write = new DeflaterOutputStream(write);
-        serializer.serialize(write, obj);
+        try {
+            serializer.serialize(write, obj);
+        } finally {
+            write.close();
+        }
     }
 
     public T peek() throws IOException {

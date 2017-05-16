@@ -99,21 +99,22 @@ public class DisqBuilder<T> {
     }
 
     public Disq<T> build(boolean paused) {
-        DiskRawQueue rawQueue = buildRawQueue();
+        PersistentQueue<T> queue = buildPersistentQueue();
+        queue.setPopPaused(paused);
 
-        PersistentQueue<T> persistentQueue = buildPersistentQueue(rawQueue);
-        persistentQueue.setPopPaused(paused);
-
-        ThreadPool<T> pool = new ThreadPool<>(threadFactory, threadCount, processor, persistentQueue);
-        return new Disq<T>(persistentQueue, pool);
+        return new Disq<T>(threadFactory, threadCount, processor, queue);
     }
 
-    private PersistentQueue<T> buildPersistentQueue(DiskRawQueue rawQueue) {
+    public PersistentQueue<T> buildPersistentQueue() {
+        return buildPersistentQueue(buildRawQueue());
+    }
+
+    public PersistentQueue<T> buildPersistentQueue(RawQueue rawQueue) {
         return new PersistentQueue<>(
                 rawQueue, serializer, initialBufferCapacity, maxBufferCapacity, compress, fallbackBufferCapacity);
     }
 
-    private DiskRawQueue buildRawQueue() {
+    public DiskRawQueue buildRawQueue() {
         return new DiskRawQueue(
                 directory, maxSize, flushOnPop, flushOnPush, deleteOldestOnOverflow);
     }
