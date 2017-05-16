@@ -39,15 +39,15 @@ public class DisqTest {
             while (disq.count() > 0)
                 Thread.sleep(10);
 
-            InOrder ordered = inOrder(processor);
-            ordered.verify(processor).process("test1");
-            ordered.verify(processor).process("test2");
-            ordered.verify(processor).process("test3");
-            ordered.verifyNoMoreInteractions();
-
             saved = ((DiskRawQueue) disq.queue().rawQueue()).path();
             assertThat(saved).exists();
         }
+        InOrder ordered = inOrder(processor);
+        ordered.verify(processor).process("test1");
+        ordered.verify(processor).process("test2");
+        ordered.verify(processor).process("test3");
+        ordered.verifyNoMoreInteractions();
+
         assertThat(saved).doesNotExist();
     }
 
@@ -62,6 +62,8 @@ public class DisqTest {
     @Test
     public void testSpecificPathLimitedQueue() throws Exception {
         Processor<String> processor = mock(Processor.class);
+        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
+
         Path saved = null;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
@@ -70,7 +72,6 @@ public class DisqTest {
                 .build()) {
             disq.pause();
 
-            String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
 
             disq.submit(s + "1");
             disq.submit(s + "2");
@@ -86,14 +87,16 @@ public class DisqTest {
             while (disq.count() > 0)
                 Thread.sleep(10);
 
-            InOrder ordered = inOrder(processor);
-            ordered.verify(processor).process(s + "1");
-            ordered.verify(processor).process(s + "2");
-            ordered.verifyNoMoreInteractions();
-
             saved = ((DiskRawQueue) disq.queue().rawQueue()).path();
             assertThat(saved).exists();
         }
+
+        InOrder ordered = inOrder(processor);
+        ordered.verify(processor).process(s + "1");
+        ordered.verify(processor).process(s + "2");
+        ordered.verifyNoMoreInteractions();
+
+
         assertThat(saved).exists();
     }
 
@@ -133,15 +136,16 @@ public class DisqTest {
             while (disq.count() > 0)
                 Thread.sleep(10);
 
-            InOrder ordered = inOrder(processor);
-            ordered.verify(processor).process(s + "1");
-            ordered.verify(processor).process(s + "2");
-            ordered.verify(processor).process(s + "3");
-            ordered.verifyNoMoreInteractions();
-
             saved = ((DiskRawQueue) disq.queue().rawQueue()).path();
             assertThat(saved).exists();
         }
+
+        InOrder ordered = inOrder(processor);
+        ordered.verify(processor).process(s + "1");
+        ordered.verify(processor).process(s + "2");
+        ordered.verify(processor).process(s + "3");
+        ordered.verifyNoMoreInteractions();
+
         assertThat(saved).exists();
     }
 
