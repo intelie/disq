@@ -84,7 +84,7 @@ public class StateFileTest {
         assertThat(state.getWritePosition()).isEqualTo(writePosition);
         assertThat(state.getCount()).isEqualTo(count);
         assertThat(state.getBytes()).isEqualTo(bytes);
-        assertThat(state.getNumberOfFiles()).isEqualTo(writeFile - readFile + 1);
+        assertThat(state.getNumberOfFiles()).isEqualTo(writeFile - readFile + (writePosition > 0 ? 1 : 0));
 
         assertThat(state.getFileCount(0)).isEqualTo(c1);
         assertThat(state.getFileCount(1)).isEqualTo(c2);

@@ -45,7 +45,7 @@ public class StateFile implements Closeable {
         int writeFile = getWriteFile();
         boolean same = sameFileReadWrite();
 
-        return same && readFile == file ||
+        return same && readFile == file && (readPosition != 0 || writePosition != 0) ||
                 !same && readFile <= writeFile && readFile <= file && file <= writeFile ||
                 !same && readFile >= writeFile && (readFile <= file || file <= writeFile);
     }

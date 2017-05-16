@@ -56,7 +56,7 @@ public class DiskRawQueue implements RawQueue {
         }
         Files.createDirectories(this.directory);
         this.state = new StateFile(this.directory.resolve("state"));
-        this.writer = openWriter();
+        this.writer = null;
         this.reader = null;
         gc();
     }
@@ -256,7 +256,7 @@ public class DiskRawQueue implements RawQueue {
     private void gc() throws IOException {
         Path file = makeDataPath(state.getReadFile());
         boolean shouldFlush = false;
-        while (!Files.exists(file) && state.getReadFile() != state.getWriteFile()) {
+        while (!Files.exists(file) && !state.sameFileReadWrite()) {
             state.advanceReadFile(0);
             file = makeDataPath(state.getReadFile());
             shouldFlush = true;

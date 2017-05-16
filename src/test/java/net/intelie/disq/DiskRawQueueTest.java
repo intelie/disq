@@ -176,7 +176,7 @@ public class DiskRawQueueTest {
             push(queue, s);
 
         assertThat(queue.count()).isEqualTo(121);
-        assertThat(queue.files()).isEqualTo(122);
+        assertThat(queue.files()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
         assertThat(queue.remainingBytes()).isEqualTo(0);
         assertThat(queue.remainingCount()).isEqualTo(0);
@@ -185,6 +185,10 @@ public class DiskRawQueueTest {
 
         assertThat(queue.count()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
+
+        queue.reopen();
+        for (int i = 0; i < 121; i++)
+            assertThat(pop(queue)).isEqualTo(s);
     }
 
     @Test
@@ -382,7 +386,13 @@ public class DiskRawQueueTest {
         queue.clear();
 
         assertBytesAndCount(queue, 0, 0);
-        assertThat(temp.getRoot().list()).containsOnly("state", "data00");
+        assertThat(temp.getRoot().list()).containsOnly("state");
+
+        for (int i = 0; i < 5; i++)
+            push(queue, s);
+        for (int i = 0; i < 5; i++)
+            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(516);
+        assertBytesAndCount(queue, 5*516, 5);
     }
 
     @Test
