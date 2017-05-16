@@ -37,8 +37,8 @@ public class StateFileTest {
         assertThat(statePath.length()).isEqualTo(512);
 
         DataInputStream data = new DataInputStream(new FileInputStream(statePath));
-        assertThat(data.readShort()).isEqualTo((short)1);
-        assertThat(data.readShort()).isEqualTo((short)2);
+        assertThat(data.readShort()).isEqualTo((short) 1);
+        assertThat(data.readShort()).isEqualTo((short) 2);
         assertThat(data.readInt()).isEqualTo(50);
         assertThat(data.readInt()).isEqualTo(82);
         assertThat(data.readLong()).isEqualTo(1);
@@ -84,6 +84,7 @@ public class StateFileTest {
         assertThat(state.getWritePosition()).isEqualTo(writePosition);
         assertThat(state.getCount()).isEqualTo(count);
         assertThat(state.getBytes()).isEqualTo(bytes);
+        assertThat(state.getNumberOfFiles()).isEqualTo(writeFile - readFile + 1);
 
         assertThat(state.getFileCount(0)).isEqualTo(c1);
         assertThat(state.getFileCount(1)).isEqualTo(c2);

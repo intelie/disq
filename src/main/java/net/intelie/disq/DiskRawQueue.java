@@ -84,6 +84,12 @@ public class DiskRawQueue implements RawQueue {
         return lenient.performSafe(() -> state.getCount(), 0);
     }
 
+    public synchronized long files() {
+        checkNotClosed();
+
+        return lenient.performSafe(() -> state.getNumberOfFiles(), 0);
+    }
+
     @Override
     public synchronized long remainingBytes() {
         checkNotClosed();
@@ -218,7 +224,7 @@ public class DiskRawQueue implements RawQueue {
     }
 
     private boolean willOverflow(Buffer buffer) throws IOException {
-        return bytes() + buffer.count() + DataFileWriter.OVERHEAD > maxSize;
+        return bytes() + buffer.count() + DataFileWriter.OVERHEAD > maxSize || files() >= StateFile.MAX_FILES;
     }
 
     private boolean checkReadEOF() throws IOException {

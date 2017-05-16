@@ -176,6 +176,7 @@ public class DiskRawQueueTest {
             push(queue, s);
 
         assertThat(queue.count()).isEqualTo(121);
+        assertThat(queue.files()).isEqualTo(122);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
         assertThat(queue.remainingBytes()).isEqualTo(0);
         assertThat(queue.remainingCount()).isEqualTo(0);
@@ -184,6 +185,38 @@ public class DiskRawQueueTest {
 
         assertThat(queue.count()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
+    }
+
+    @Test
+    public void testLimitByNumberOfFiles() throws Exception {
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
+
+        String s1 = Strings.repeat("a", 508);
+        for (int i = 0; i < 110; i++)
+            push(queue, s1);
+
+        queue.close();
+        queue = new DiskRawQueue(temp.getRoot().toPath(), 1024 * 121);
+
+        String s2 = Strings.repeat("a", 1020);
+        for (int i = 0; i < 11; i++)
+            push(queue, s2);
+
+        assertThat(queue.files()).isEqualTo(121);
+        assertThat(queue.count()).isEqualTo(121);
+        assertThat(queue.bytes()).isEqualTo(512 * 110 + 1024 * 11);
+
+        push(queue, s2);
+
+        assertThat(queue.files()).isEqualTo(121);
+        assertThat(queue.count()).isEqualTo(121);
+        assertThat(queue.bytes()).isEqualTo(512 * 109 + 1024 * 12);
+
+        for (int i = 0; i < 109; i++)
+            assertThat(pop(queue)).isEqualTo(s1);
+        for (int i = 0; i < 12; i++)
+            assertThat(pop(queue)).isEqualTo(s2);
+        assertThat(pop(queue)).isEqualTo(null);
     }
 
     @Test

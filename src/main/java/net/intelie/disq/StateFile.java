@@ -107,6 +107,13 @@ public class StateFile implements Closeable {
         return bytes;
     }
 
+    public int getNumberOfFiles() {
+        return (writeFile >= readFile ?
+                writeFile - readFile :
+                MAX_FILE_ID - readFile + writeFile) +
+                (writePosition > 0 ? 1 : 0);
+    }
+
     public void addWriteCount(int bytes) {
         this.count += 1;
         this.bytes += bytes;
