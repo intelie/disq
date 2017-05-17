@@ -167,7 +167,7 @@ public class DiskRawQueue implements RawQueue {
 
         return lenient.perform(() -> {
             checkWriteEOF();
-            if (checkFutureQueueOverflow(buffer))
+            if (checkFutureQueueOverflow(buffer.count()))
                 return 0;
 
             int written = writer().write(buffer);
@@ -180,13 +180,13 @@ public class DiskRawQueue implements RawQueue {
         }) > 0;
     }
 
-    private boolean checkFutureQueueOverflow(Buffer buffer) throws IOException {
+    private boolean checkFutureQueueOverflow(int count) throws IOException {
         if (deleteOldestOnOverflow) {
-            while (!state.sameFileReadWrite() && willOverflow(buffer))
+            while (!state.sameFileReadWrite() && willOverflow(count))
                 deleteOldestFile();
             return false;
         } else {
-            return willOverflow(buffer);
+            return willOverflow(count);
         }
     }
 
@@ -223,8 +223,8 @@ public class DiskRawQueue implements RawQueue {
         }
     }
 
-    private boolean willOverflow(Buffer buffer) throws IOException {
-        return bytes() + buffer.count() + DataFileWriter.OVERHEAD > maxSize || files() >= StateFile.MAX_FILES;
+    private boolean willOverflow(int count) throws IOException {
+        return bytes() + count + DataFileWriter.OVERHEAD > maxSize || files() >= StateFile.MAX_FILES;
     }
 
     private boolean checkReadEOF() throws IOException {

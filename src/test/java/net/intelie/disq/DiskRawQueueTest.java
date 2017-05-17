@@ -211,6 +211,7 @@ public class DiskRawQueueTest {
         assertThat(queue.bytes()).isEqualTo(512 * 110 + 1024 * 11);
 
         push(queue, s2);
+        queue.reopen();
 
         assertThat(queue.files()).isEqualTo(121);
         assertThat(queue.count()).isEqualTo(121);
