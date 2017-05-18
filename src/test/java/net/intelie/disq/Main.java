@@ -11,11 +11,25 @@ public class Main {
     static String s = Strings.repeat("a", 1000);
 
     private static PersistentQueue<String> open() throws IOException {
-        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, true, true, false);
+        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
         return new PersistentQueue<>(bq, new DefaultSerializer<>(), 16000, -1, false);
     }
 
     public static void main(String[] args) throws Exception {
+        test();
+
+        /*try (PersistentQueue<String> queue = open()) {
+            queue.clear();
+        }
+        allWrites(100000);
+        allWrites(100000);
+        allWrites(100000);
+        allReads(100000);
+        allReads(100000);
+        allReads(100000);*/
+    }
+
+    private static void test() throws Exception {
         long start = System.nanoTime();
 
         Map<String, Integer> map = new HashMap<String, Integer>() {
@@ -27,16 +41,16 @@ public class Main {
 
         Disq<Object> queue = Disq
                 .builder(x -> {
-                    //  System.out.println(Thread.currentThread().getId() + " " + x);
                     map.put(Thread.currentThread().getName(), map.get(Thread.currentThread().getName()) + 1);
                 })
                 .setDirectory("/home/juanplopes/Downloads/queue")
-                .setNamedThreadFactory("test-%d")
                 .setMaxSize(1 << 28)
-                .setThreadCount(10)
+                .setThreadCount(8)
+                .setFlushOnPop(false)
+                .setFlushOnPush(false)
+                .setNamedThreadFactory("%d")
                 .setDeleteOldestOnOverflow(true)
                 .build(true);
-
         queue.clear();
 
         String s = Strings.repeat("a", 10);
@@ -56,18 +70,13 @@ public class Main {
 
         queue.close();
 
-        /*try (PersistentQueue<String> queue = open()) {
-            queue.clear();
-        }
-        allWrites(100000);
-        allReads(100000);*/
     }
 
     private static void allReads(int n) throws IOException {
         long start = System.nanoTime();
 
         try (PersistentQueue<String> queue = open()) {
-            System.out.println(queue.count() + " " + queue.bytes());
+            //System.out.println(queue.count() + " " + queue.bytes());
 
             for (int i = 0; i < n; i++) {
                 String q = queue.pop();
@@ -76,9 +85,9 @@ public class Main {
 
             }
 
-            System.out.println(queue.count() + " " + queue.bytes());
+            //System.out.println(queue.count() + " " + queue.bytes());
 
-            System.out.println((System.nanoTime() - start) / 1.0e9);
+            System.out.println("read " + (System.nanoTime() - start) / 1.0e9);
         }
     }
 
@@ -86,15 +95,15 @@ public class Main {
         long start = System.nanoTime();
 
         try (PersistentQueue<String> queue = open()) {
-            System.out.println(queue.count() + " " + queue.bytes());
+            //System.out.println(queue.count() + " " + queue.bytes());
 
             for (int i = 0; i < n; i++) {
                 queue.push(s);
             }
 
-            System.out.println(queue.count() + " " + queue.bytes());
+            //System.out.println(queue.count() + " " + queue.bytes());
         }
-        System.out.println((System.nanoTime() - start) / 1.0e9);
+        System.out.println("write " + (System.nanoTime() - start) / 1.0e9);
     }
 
 }
