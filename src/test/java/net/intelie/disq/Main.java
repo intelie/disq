@@ -29,7 +29,6 @@ public class Main {
                 .builder(x -> {
                     //  System.out.println(Thread.currentThread().getId() + " " + x);
                     map.put(Thread.currentThread().getName(), map.get(Thread.currentThread().getName()) + 1);
-                    Thread.sleep(1);
                 })
                 .setDirectory("/home/juanplopes/Downloads/queue")
                 .setNamedThreadFactory("test-%d")
@@ -38,8 +37,10 @@ public class Main {
                 .setDeleteOldestOnOverflow(true)
                 .build(true);
 
+        queue.clear();
+
         String s = Strings.repeat("a", 10);
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 100000; i++) {
             queue.submit(s + i);
         }
         //Thread.sleep(100000);

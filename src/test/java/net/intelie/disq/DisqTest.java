@@ -100,6 +100,30 @@ public class DisqTest {
         assertThat(saved).exists();
     }
 
+ @Test
+    public void testClearAndFlush() throws Exception {
+        Processor<String> processor = mock(Processor.class);
+        String s = Strings.repeat("a", 20);
+
+        Path saved = null;
+        try (Disq<String> disq = Disq.builder(processor)
+                .setMaxSize(StateFile.MIN_QUEUE_SIZE)
+                .setSerializer(new StringSerializer())
+                .setDirectory(temp.getRoot().toPath())
+                .build()) {
+
+            disq.submit(s + "1");
+            disq.submit(s + "2");
+            disq.submit(s + "3");
+            assertThat(temp.getRoot().list()).containsOnly("state", "data00");
+
+            disq.clear();
+            disq.flush();
+        }
+
+        assertThat(temp.getRoot().list()).containsOnly("state");
+    }
+
     @Test
     public void testSpecificPathCompressedueueReopening() throws Exception {
         String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);

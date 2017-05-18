@@ -88,6 +88,14 @@ public class Disq<T> implements AutoCloseable {
         queue.setPopPaused(false);
     }
 
+    public void clear() throws IOException {
+        queue.clear();
+    }
+
+    public void flush() throws IOException {
+        queue.flush();
+    }
+
     private class WorkerRunnable implements Runnable {
         private final PersistentQueue<T> queue;
         private final Object shutdownLock;
