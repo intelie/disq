@@ -11,14 +11,14 @@ public class Main {
     static String s = Strings.repeat("a", 1000);
 
     private static PersistentQueue<String> open() throws IOException {
-        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
-        return new PersistentQueue<>(bq, new DefaultSerializer<>(), 16000, -1, false);
+        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes2/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
+        return new PersistentQueue<>(bq, new GsonSerializer(String.class), 16000, -1, false);
     }
 
     public static void main(String[] args) throws Exception {
-        test();
+        //test();
 
-        /*try (PersistentQueue<String> queue = open()) {
+        try (PersistentQueue<String> queue = open()) {
             queue.clear();
         }
         allWrites(100000);
@@ -26,7 +26,7 @@ public class Main {
         allWrites(100000);
         allReads(100000);
         allReads(100000);
-        allReads(100000);*/
+        allReads(100000);
     }
 
     private static void test() throws Exception {

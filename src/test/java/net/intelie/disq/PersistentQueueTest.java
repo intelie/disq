@@ -2,7 +2,6 @@ package net.intelie.disq;
 
 
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -23,7 +22,7 @@ public class PersistentQueueTest {
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         assertThat(queue.rawQueue()).isEqualTo(bq);
         assertThat(queue.fallbackQueue()).isInstanceOf(ArrayRawQueue.class);
@@ -55,7 +54,7 @@ public class PersistentQueueTest {
     @Test
     public void cannotPushNull() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         assertThatThrownBy(()->queue.push(null))
                 .isInstanceOf(NullPointerException.class)
@@ -65,7 +64,7 @@ public class PersistentQueueTest {
     @Test
     public void testWhenTheDirectoryIsReadOnly() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false, 1000);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false, 1000);
 
         for (int i = 0; i < 10; i++)
             assertThat(queue.push("test" + i)).isTrue();
@@ -103,7 +102,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 508);
 
@@ -123,7 +122,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 506);
 
@@ -139,7 +138,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         String s = Strings.repeat("a", 508);
 
@@ -159,7 +158,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingBoth() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
         queue.setPopPaused(true);
         queue.setPushPaused(true);
 
@@ -192,7 +191,7 @@ public class PersistentQueueTest {
     @Test
     public void canPushBigCompressing() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, true);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, true);
 
         queue.push(Strings.repeat("a", 10000));
 
@@ -202,7 +201,7 @@ public class PersistentQueueTest {
     @Test
     public void canClear() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -214,7 +213,7 @@ public class PersistentQueueTest {
     @Test
     public void canAvoidFlush() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, new GsonSerializer(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -295,24 +294,6 @@ public class PersistentQueueTest {
         public void runThrowable() throws Throwable {
             for (int i = 0; i < 200; i++) {
                 assertThat(queue.blockingPop()).isEqualTo(s + i);
-            }
-        }
-    }
-
-    public class GsonSerializer implements Serializer<Object> {
-        Gson gson = new Gson();
-
-        @Override
-        public void serialize(OutputStream stream, Object obj) throws IOException {
-            try (OutputStreamWriter writer = new OutputStreamWriter(stream)) {
-                gson.toJson(obj, writer);
-            }
-        }
-
-        @Override
-        public Object deserialize(InputStream stream) throws IOException {
-            try (InputStreamReader reader = new InputStreamReader(stream)) {
-                return gson.fromJson(reader, Object.class);
             }
         }
     }
