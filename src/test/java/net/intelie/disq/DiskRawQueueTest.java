@@ -119,7 +119,7 @@ public class DiskRawQueueTest {
             String s = "test" + String.format("%02x", i);
 
             push(queue, s);
-            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(0);
+            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * (i + 1));
             assertStateFile(temp.getRoot(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
             assertThat(pop(queue)).isEqualTo(s);
@@ -393,7 +393,7 @@ public class DiskRawQueueTest {
             push(queue, s);
         for (int i = 0; i < 5; i++)
             assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(516);
-        assertBytesAndCount(queue, 5*516, 5);
+        assertBytesAndCount(queue, 5 * 516, 5);
     }
 
     @Test

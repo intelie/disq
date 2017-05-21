@@ -172,10 +172,8 @@ public class DiskRawQueue implements RawQueue {
 
             int written = writer().write(buffer);
             state.addWriteCount(written);
-            if (flushOnWrite) {
-                writer.flush();
+            if (flushOnWrite)
                 state.flush();
-            }
 
             checkWriteEOF();
             return 1;

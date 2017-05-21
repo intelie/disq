@@ -25,11 +25,8 @@ public class DataFileWriter implements Closeable {
     public int write(Buffer buffer) throws IOException {
         stream.writeInt(buffer.count());
         stream.write(buffer.buf(), 0, buffer.count());
-        return buffer.count() + OVERHEAD;
-    }
-
-    public void flush() throws IOException {
         stream.flush();
+        return buffer.count() + OVERHEAD;
     }
 
     @Override
