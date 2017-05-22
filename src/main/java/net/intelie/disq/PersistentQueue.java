@@ -110,7 +110,7 @@ public class PersistentQueue<T> implements AutoCloseable {
 
     public T blockingPop(long amount, TimeUnit unit) throws InterruptedException, IOException {
         return this.<T, InterruptedException>doWithBuffer(buffer -> {
-            lock.lock();
+            lock.lockInterruptibly();
             try {
                 long target = System.nanoTime() + unit.toNanos(amount);
                 while (!notifyingPop(buffer)) {
@@ -127,7 +127,7 @@ public class PersistentQueue<T> implements AutoCloseable {
 
     public T blockingPop() throws InterruptedException, IOException {
         return this.<T, InterruptedException>doWithBuffer(buffer -> {
-            lock.lock();
+            lock.lockInterruptibly();
             try {
                 while (!notifyingPop(buffer))
                     notEmpty.awaitNanos(MAX_WAIT);
@@ -141,7 +141,7 @@ public class PersistentQueue<T> implements AutoCloseable {
     public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
         return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
             serialize(obj, buffer);
-            lock.lock();
+            lock.lockInterruptibly();
             try {
                 long target = System.nanoTime() + unit.toNanos(amount);
                 while (!notifyingPush(buffer)) {
@@ -160,7 +160,7 @@ public class PersistentQueue<T> implements AutoCloseable {
     public boolean blockingPush(T obj) throws InterruptedException, IOException {
         return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
             serialize(obj, buffer);
-            lock.lock();
+            lock.lockInterruptibly();
             try {
                 while (!notifyingPush(buffer))
                     notFull.awaitNanos(MAX_WAIT);
