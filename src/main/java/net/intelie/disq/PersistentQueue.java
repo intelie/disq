@@ -9,13 +9,16 @@ import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 public class PersistentQueue<T> implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(PersistentQueue.class);
 
-    private static final int MAX_WAIT = 10000;
+    private static final long MAX_WAIT = 10_000_000_000L;
 
     private final ConcurrentLinkedQueue<WeakReference<Buffer>> pool;
     private final ArrayRawQueue fallback;
@@ -24,6 +27,10 @@ public class PersistentQueue<T> implements AutoCloseable {
     private final int initialBufferCapacity;
     private final int maxBufferCapacity;
     private final boolean compress;
+    private final Lock lock = new ReentrantLock();
+    private final Condition notFull = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();
+
     private boolean popPaused, pushPaused;
 
     public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
@@ -49,16 +56,24 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     public void setPopPaused(boolean popPaused) {
-        synchronized (queue) {
+        lock.lock();
+        try {
             this.popPaused = popPaused;
-            this.queue.notifyAll();
+            this.notFull.signalAll();
+            this.notEmpty.signalAll();
+        } finally {
+            lock.unlock();
         }
     }
 
     public void setPushPaused(boolean pushPaused) {
-        synchronized (queue) {
+        lock.lock();
+        try {
             this.pushPaused = pushPaused;
-            this.queue.notifyAll();
+            this.notFull.signalAll();
+            this.notEmpty.signalAll();
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -95,13 +110,16 @@ public class PersistentQueue<T> implements AutoCloseable {
 
     public T blockingPop(long amount, TimeUnit unit) throws InterruptedException, IOException {
         return this.<T, InterruptedException>doWithBuffer(buffer -> {
-            synchronized (queue) {
-                long target = System.currentTimeMillis() + unit.toMillis(amount);
+            lock.lock();
+            try {
+                long target = System.nanoTime() + unit.toNanos(amount);
                 while (!notifyingPop(buffer)) {
-                    long wait = Math.min(MAX_WAIT, target - System.currentTimeMillis());
+                    long wait = Math.min(MAX_WAIT, target - System.nanoTime());
                     if (wait <= 0) return null;
-                    queue.wait(wait);
+                    notEmpty.awaitNanos(wait);
                 }
+            } finally {
+                lock.unlock();
             }
             return deserialize(buffer);
         });
@@ -109,9 +127,12 @@ public class PersistentQueue<T> implements AutoCloseable {
 
     public T blockingPop() throws InterruptedException, IOException {
         return this.<T, InterruptedException>doWithBuffer(buffer -> {
-            synchronized (queue) {
+            lock.lock();
+            try {
                 while (!notifyingPop(buffer))
-                    queue.wait(MAX_WAIT);
+                    notEmpty.awaitNanos(MAX_WAIT);
+            } finally {
+                lock.unlock();
             }
             return deserialize(buffer);
         });
@@ -120,13 +141,17 @@ public class PersistentQueue<T> implements AutoCloseable {
     public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
         return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
             serialize(obj, buffer);
-            synchronized (queue) {
-                long target = System.currentTimeMillis() + unit.toMillis(amount);
+            lock.lock();
+            try {
+                long target = System.nanoTime() + unit.toNanos(amount);
                 while (!notifyingPush(buffer)) {
-                    long wait = Math.min(MAX_WAIT, target - System.currentTimeMillis());
+                    long wait = Math.min(MAX_WAIT, target - System.nanoTime());
                     if (wait <= 0) return false;
-                    queue.wait(target - System.currentTimeMillis());
+
+                    notFull.awaitNanos(target - System.nanoTime());
                 }
+            } finally {
+                lock.unlock();
             }
             return true;
         });
@@ -135,9 +160,12 @@ public class PersistentQueue<T> implements AutoCloseable {
     public boolean blockingPush(T obj) throws InterruptedException, IOException {
         return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
             serialize(obj, buffer);
-            synchronized (queue) {
+            lock.lock();
+            try {
                 while (!notifyingPush(buffer))
-                    queue.wait(MAX_WAIT);
+                    notFull.awaitNanos(MAX_WAIT);
+            } finally {
+                lock.unlock();
             }
             return true;
         });
@@ -145,8 +173,11 @@ public class PersistentQueue<T> implements AutoCloseable {
 
     public T pop() throws IOException {
         return doWithBuffer(buffer -> {
-            synchronized (queue) {
+            lock.lock();
+            try {
                 if (!notifyingPop(buffer)) return null;
+            } finally {
+                lock.unlock();
             }
             return deserialize(buffer);
         });
@@ -155,8 +186,11 @@ public class PersistentQueue<T> implements AutoCloseable {
     public boolean push(T obj) throws IOException {
         return doWithBuffer(buffer -> {
             serialize(obj, buffer);
-            synchronized (queue) {
+            lock.lock();
+            try {
                 if (!notifyingPush(buffer)) return false;
+            } finally {
+                lock.unlock();
             }
             return true;
         });
@@ -167,7 +201,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         if (!innerPop(buffer))
             return false;
         else {
-            queue.notifyAll();
+            notFull.signalAll();
             return true;
         }
     }
@@ -177,7 +211,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         if (!innerPush(buffer))
             return false;
         else {
-            queue.notifyAll();
+            notEmpty.signal();
             return true;
         }
     }

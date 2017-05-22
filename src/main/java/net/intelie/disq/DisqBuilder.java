@@ -14,7 +14,7 @@ public class DisqBuilder<T> {
     private boolean flushOnPop = true;
     private boolean flushOnPush = true;
 
-    private boolean deleteOldestOnOverflow = false;
+    private boolean deleteOldestOnOverflow = true;
     private int initialBufferCapacity = 4096;
     private int maxBufferCapacity = -1;
     private boolean compress = false;

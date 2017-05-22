@@ -6,12 +6,15 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
     static String s = Strings.repeat("a", 1000);
 
     private static PersistentQueue<String> open() throws IOException {
-        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
+        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes2/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
         return new PersistentQueue<>(bq, new StringSerializer(), 16000, -1, false);
     }
 
@@ -45,21 +48,27 @@ public class Main {
                 .builder(x -> {
                     map.put(Thread.currentThread().getName(), map.get(Thread.currentThread().getName()) + 1);
                 })
-                .setDirectory("/home/juanplopes/Downloads/queue")
+                .setDirectory("/home/juanplopes2/Downloads/queue")
                 .setMaxSize(1 << 28)
-                .setThreadCount(1)
+                .setThreadCount(4)
                 .setFlushOnPop(false)
-                .setFlushOnPush(false)
+                .setFlushOnPush(true)
                 .setNamedThreadFactory("%d")
                 .setDeleteOldestOnOverflow(true)
                 .build(true);
         queue.clear();
         queue.resume();
 
+        ExecutorService executor = Executors.newFixedThreadPool(8);
+
         String s = Strings.repeat("a", 1000);
-        for (int i = 0; i < 100000; i++) {
+        for (int i = 0; i < 1000000; i++) {
             queue.submit(s);
         }
+
+        executor.shutdown();;
+        executor.awaitTermination(1, TimeUnit.DAYS);
+
         //Thread.sleep(100000);
         System.out.println("OAAA " + (System.nanoTime() - start) / 1e9 + " " + queue.count());
         start = System.nanoTime();
