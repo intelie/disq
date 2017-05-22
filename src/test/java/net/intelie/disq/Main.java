@@ -59,15 +59,10 @@ public class Main {
         queue.clear();
         queue.resume();
 
-        ExecutorService executor = Executors.newFixedThreadPool(8);
-
         String s = Strings.repeat("a", 1000);
-        for (int i = 0; i < 1000000; i++) {
+        for (int i = 0; i < 100000; i++) {
             queue.submit(s);
         }
-
-        executor.shutdown();;
-        executor.awaitTermination(1, TimeUnit.DAYS);
 
         //Thread.sleep(100000);
         System.out.println("OAAA " + (System.nanoTime() - start) / 1e9 + " " + queue.count());

@@ -67,6 +67,7 @@ public class DisqTest {
         Path saved = null;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
+                .setDeleteOldestOnOverflow(false)
                 .setSerializer(new StringSerializer())
                 .setDirectory(temp.getRoot().toPath())
                 .build()) {
