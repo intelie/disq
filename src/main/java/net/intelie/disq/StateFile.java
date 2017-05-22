@@ -22,6 +22,7 @@ public class StateFile implements Closeable {
     private long count;
     private long bytes;
     private int[] fileCounts;
+    private long unflushed;
 
     public StateFile(Path file) throws IOException {
         this.fileCounts = new int[MAX_FILES];
@@ -36,6 +37,7 @@ public class StateFile implements Closeable {
                 bytes = stream.readLong();
                 for (int i = 0; i < MAX_FILES; i++)
                     fileCounts[i] = stream.readInt();
+                unflushed = 0;
             }
         }
     }
@@ -63,6 +65,7 @@ public class StateFile implements Closeable {
 
         randomWrite.seek(0);
         randomWrite.write(buffer.array());
+        unflushed = 0;
     }
 
     public int getReadFile() {
@@ -116,6 +119,7 @@ public class StateFile implements Closeable {
 
     public void addWriteCount(int bytes) {
         this.count += 1;
+        this.unflushed += 1;
         this.bytes += bytes;
         this.writePosition += bytes;
         this.fileCounts[getWriteFile()] += 1;
@@ -132,6 +136,7 @@ public class StateFile implements Closeable {
         readFile = writeFile = 0;
         readPosition = writePosition = 0;
         count = bytes = 0;
+        unflushed = 0;
         for (int i = 0; i < MAX_FILES; i++)
             fileCounts[i] = 0;
     }
@@ -161,5 +166,17 @@ public class StateFile implements Closeable {
 
     public boolean readFileEof() {
         return fileCounts[getReadFile()] <= 0;
+    }
+
+    public long getFlushedCount() {
+        return count - unflushed;
+    }
+
+    public long getUnflushedCount() {
+        return unflushed;
+    }
+
+    public boolean needsFlushBeforePop() {
+        return unflushed > 0 && unflushed == count;
     }
 }

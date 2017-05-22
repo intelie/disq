@@ -12,7 +12,7 @@ public class DataFileReader implements Closeable {
     public DataFileReader(Path file, long position) throws IOException {
         fis = new FileInputStream(file.toFile());
         skipToPosition(position);
-        stream = new DataInputStream(new BufferedInputStream(fis));
+        stream = new DataInputStream(new BufferedInputStream(fis, 1024 * 1024));
         this.position = position;
     }
 

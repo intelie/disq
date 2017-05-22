@@ -110,6 +110,32 @@ public class StateFileTest {
     }
 
     @Test
+    public void testUnflushed() throws Exception {
+        state.addWriteCount(1);
+        state.addWriteCount(2);
+        state.addWriteCount(3);
+
+        assertThat(state.getCount()).isEqualTo(3);
+        assertThat(state.getUnflushedCount()).isEqualTo(3);
+        assertThat(state.getFlushedCount()).isEqualTo(0);
+
+        state.flush();
+
+
+        assertThat(state.getCount()).isEqualTo(3);
+        assertThat(state.getUnflushedCount()).isEqualTo(0);
+        assertThat(state.getFlushedCount()).isEqualTo(3);
+
+        state.addReadCount(1);
+        state.addReadCount(2);
+        state.addWriteCount(4);
+        assertThat(state.getUnflushedCount()).isEqualTo(1);
+        assertThat(state.getFlushedCount()).isEqualTo(1);
+        assertThat(state.getCount()).isEqualTo(2);
+
+    }
+
+    @Test
     public void assertAdvanceWrite() throws Exception {
         state.addWriteCount(42);
 

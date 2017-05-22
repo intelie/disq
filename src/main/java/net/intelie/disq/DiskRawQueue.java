@@ -114,7 +114,7 @@ public class DiskRawQueue implements RawQueue {
 
         lenient.perform(() -> {
             state.clear();
-            state.flush();
+            internalFlush();
             reopen();
             return 1;
         });
@@ -131,7 +131,7 @@ public class DiskRawQueue implements RawQueue {
             int read = reader().read(buffer);
             state.addReadCount(read);
             if (flushOnRead)
-                state.flush();
+                internalFlush();
 
             checkReadEOF();
             return 1;
@@ -155,7 +155,7 @@ public class DiskRawQueue implements RawQueue {
         int currentFile = state.getReadFile();
         state.advanceReadFile(reader().size());
         reader.close();
-        state.flush();
+        internalFlush();
         reader = null;
         tryDeleteFile(currentFile);
     }
@@ -173,7 +173,7 @@ public class DiskRawQueue implements RawQueue {
             int written = writer().write(buffer);
             state.addWriteCount(written);
             if (flushOnWrite)
-                state.flush();
+                internalFlush();
 
             checkWriteEOF();
             return 1;
@@ -195,9 +195,15 @@ public class DiskRawQueue implements RawQueue {
         checkNotClosed();
 
         lenient.perform(() -> {
-            state.flush();
-            return 1;
+            return internalFlush();
         });
+    }
+
+    private long internalFlush() throws IOException {
+        if (writer != null)
+            writer.flush();
+        state.flush();
+        return 1;
     }
 
     @Override
@@ -230,6 +236,8 @@ public class DiskRawQueue implements RawQueue {
     private boolean checkReadEOF() throws IOException {
         while (!state.sameFileReadWrite() && state.readFileEof())
             deleteOldestFile();
+        if (state.needsFlushBeforePop())
+            internalFlush();
         return state.getCount() == 0;
     }
 
@@ -249,7 +257,7 @@ public class DiskRawQueue implements RawQueue {
     private void advanceWriteFile() throws IOException {
         writer().close();
         state.advanceWriteFile();
-        state.flush();
+        internalFlush();
         writer = null;
     }
 
@@ -278,7 +286,7 @@ public class DiskRawQueue implements RawQueue {
         shouldFlush |= state.fixCounts(totalCount, totalBytes);
 
         if (shouldFlush)
-            state.flush();
+            internalFlush();
 
     }
 

@@ -119,11 +119,13 @@ public class DiskRawQueueTest {
             String s = "test" + String.format("%02x", i);
 
             push(queue, s);
-            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * (i + 1));
-            assertStateFile(temp.getRoot(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * i);
+            assertStateFile(queue.path().toFile(), 0, 0, Math.max(0, (i - 1) * 10), i * 10, Math.min(i, 1), Math.max(0, i * 10), Math.min(i, 1), 0, 0);
 
             assertThat(pop(queue)).isEqualTo(s);
-            assertStateFile(temp.getRoot(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * (i + 1));
+
+            assertStateFile(queue.path().toFile(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
         }
 
         queue.flush();

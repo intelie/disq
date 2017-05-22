@@ -11,22 +11,24 @@ public class Main {
     static String s = Strings.repeat("a", 1000);
 
     private static PersistentQueue<String> open() throws IOException {
-        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes2/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
-        return new PersistentQueue<>(bq, new GsonSerializer(String.class), 16000, -1, false);
+        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
+        return new PersistentQueue<>(bq, new StringSerializer(), 16000, -1, false);
     }
 
     public static void main(String[] args) throws Exception {
-        //test();
+        test();
 
-        try (PersistentQueue<String> queue = open()) {
+        /*try (PersistentQueue<String> queue = open()) {
             queue.clear();
         }
-        allWrites(100000);
-        allWrites(100000);
-        allWrites(100000);
-        allReads(100000);
-        allReads(100000);
-        allReads(100000);
+        while(true) {
+            allWrites(100000);
+            allWrites(100000);
+            allWrites(100000);
+            allReads(100000);
+            allReads(100000);
+            allReads(100000);
+        }*/
     }
 
     private static void test() throws Exception {
@@ -45,21 +47,21 @@ public class Main {
                 })
                 .setDirectory("/home/juanplopes/Downloads/queue")
                 .setMaxSize(1 << 28)
-                .setThreadCount(8)
+                .setThreadCount(1)
                 .setFlushOnPop(false)
                 .setFlushOnPush(false)
                 .setNamedThreadFactory("%d")
                 .setDeleteOldestOnOverflow(true)
                 .build(true);
         queue.clear();
+        queue.resume();
 
-        String s = Strings.repeat("a", 10);
+        String s = Strings.repeat("a", 1000);
         for (int i = 0; i < 100000; i++) {
-            queue.submit(s + i);
+            queue.submit(s);
         }
         //Thread.sleep(100000);
         System.out.println("OAAA " + (System.nanoTime() - start) / 1e9 + " " + queue.count());
-        queue.resume();
         start = System.nanoTime();
 
         while (queue.count() > 0)
