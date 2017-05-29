@@ -6,15 +6,12 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class Main {
     static String s = Strings.repeat("a", 1000);
 
     private static PersistentQueue<String> open() throws IOException {
-        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes2/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
+        DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
         return new PersistentQueue<>(bq, new StringSerializer(), 16000, -1, false);
     }
 
@@ -48,11 +45,11 @@ public class Main {
                 .builder(x -> {
                     map.put(Thread.currentThread().getName(), map.get(Thread.currentThread().getName()) + 1);
                 })
-                .setDirectory("/home/juanplopes2/Downloads/queue")
+                .setDirectory("/home/juanplopes/Downloads/queue")
                 .setMaxSize(1 << 28)
-                .setThreadCount(4)
+                .setThreadCount(8)
                 .setFlushOnPop(false)
-                .setFlushOnPush(true)
+                .setFlushOnPush(false)
                 .setNamedThreadFactory("%d")
                 .setDeleteOldestOnOverflow(true)
                 .build(true);
@@ -72,6 +69,7 @@ public class Main {
             Thread.sleep(100);
 
         System.out.println(map);
+        System.out.println(map.values().stream().mapToInt(x -> x).sum());
         System.out.println("OAAA " + (System.nanoTime() - start) / 1e9);
 
         queue.close();
