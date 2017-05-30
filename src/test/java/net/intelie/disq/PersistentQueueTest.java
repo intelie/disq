@@ -34,18 +34,18 @@ public class PersistentQueueTest {
         queue.close();
         queue.reopen();
 
-        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 230);
-        assertThat(queue.remainingCount()).isEqualTo(2683);
+        assertThat(queue.bytes()).isEqualTo(390);
         assertThat(queue.count()).isEqualTo(10);
-        assertThat(queue.bytes()).isEqualTo(230);
+        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 390);
+        assertThat(queue.remainingCount()).isEqualTo(1578);
         assertThat(queue.peek()).isEqualTo("test10");
 
         for (int i = 10; i < 20; i++)
             assertThat(queue.pop()).isEqualTo("test" + i);
 
         assertThat(queue.count()).isEqualTo(0);
-        assertThat(queue.bytes()).isEqualTo(230);
-        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 230);
+        assertThat(queue.bytes()).isEqualTo(390);
+        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 390);
         assertThat(queue.remainingCount()).isEqualTo(15488);
         assertThat(queue.pop()).isNull();
         assertThat(queue.peek()).isNull();
@@ -70,9 +70,9 @@ public class PersistentQueueTest {
             assertThat(queue.push("test" + i)).isTrue();
 
         assertThat(queue.count()).isEqualTo(10);
-        assertThat(queue.remainingCount()).isEqualTo(5622);
-        assertThat(queue.bytes()).isEqualTo(110);
-        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 110);
+        assertThat(queue.remainingCount()).isEqualTo(3250);
+        assertThat(queue.bytes()).isEqualTo(190);
+        assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 190);
 
         new File(temp.getRoot(), "state").setWritable(false);
         queue.reopen();
@@ -83,7 +83,7 @@ public class PersistentQueueTest {
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(0);
-        assertThat(queue.bytes()).isEqualTo(120);
+        assertThat(queue.bytes()).isEqualTo(200);
         assertThat(queue.remainingBytes()).isEqualTo(0);
 
         for (int i = 10; i < 20; i++)
@@ -124,7 +124,7 @@ public class PersistentQueueTest {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
         PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
-        String s = Strings.repeat("a", 506);
+        String s = Strings.repeat("a", 498);
 
         for (int i = 0; i < 121; i++)
             assertThat(queue.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isTrue();
@@ -162,7 +162,7 @@ public class PersistentQueueTest {
         queue.setPopPaused(true);
         queue.setPushPaused(true);
 
-        String s = Strings.repeat("a", 502);
+        String s = Strings.repeat("a", 494);
 
         ReaderThread t2 = new ReaderThread(queue, s);
         t2.start();

@@ -39,6 +39,12 @@ public class DiskRawQueue implements RawQueue {
     }
 
     @Override
+    public long nextTimestamp() {
+        checkNotClosed();
+        return lenient.performSafe(() -> reader().nextTimestamp(), 0);
+    }
+
+    @Override
     public synchronized void reopen() {
         internalClose();
         closed = false;

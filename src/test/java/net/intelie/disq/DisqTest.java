@@ -62,7 +62,7 @@ public class DisqTest {
     @Test
     public void testSpecificPathLimitedQueue() throws Exception {
         Processor<String> processor = mock(Processor.class);
-        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
+        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 13);
 
         Path saved = null;
         try (Disq<String> disq = Disq.builder(processor)
@@ -127,7 +127,7 @@ public class DisqTest {
 
     @Test
     public void testSpecificPathCompressedueueReopening() throws Exception {
-        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
+        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 13);
 
         Processor<String> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(anyString());
@@ -147,7 +147,7 @@ public class DisqTest {
             disq.submit(s + "2");
             disq.submit(s + "3");
 
-            assertThat(disq.bytes()).isEqualTo(177);
+            assertThat(disq.bytes()).isEqualTo(198);
             assertThat(disq.remainingBytes()).isEqualTo(StateFile.MIN_QUEUE_SIZE - disq.bytes());
             assertThat(disq.count()).isEqualTo(3);
             verifyZeroInteractions(processor);

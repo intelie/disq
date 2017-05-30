@@ -4,7 +4,7 @@ import java.io.*;
 import java.nio.file.Path;
 
 public class DataFileWriter implements Closeable {
-    public static final int OVERHEAD = 4;
+    public static final int OVERHEAD = 12;
     private final DataOutputStream stream;
     private final FileOutputStream fos;
     private final File file;
@@ -23,6 +23,7 @@ public class DataFileWriter implements Closeable {
     }
 
     public int write(Buffer buffer) throws IOException {
+        stream.writeLong(buffer.getTimestamp());
         stream.writeInt(buffer.count());
         stream.write(buffer.buf(), 0, buffer.count());
         //stream.flush();

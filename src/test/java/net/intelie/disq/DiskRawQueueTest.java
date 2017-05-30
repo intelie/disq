@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static net.intelie.disq.DataFileWriter.OVERHEAD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -50,12 +51,13 @@ public class DiskRawQueueTest {
         for (int i = 0; i < 20; i++) {
             String s = "test" + String.format("%02x", i);
 
-            push(queue, s);
-            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((i + 1) * 10);
-            assertStateFile(temp.getRoot(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+            push(queue, s, 1000 + i);
+            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((i + 1) * (6 + OVERHEAD));
+            assertStateFile(temp.getRoot(), 0, 0, i * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 1, (i + 1) * (6 + OVERHEAD), 1, 0, 0);
 
+            assertThat(queue.nextTimestamp()).isEqualTo(1000 + i);
             assertThat(pop(queue)).isEqualTo(s);
-            assertStateFile(temp.getRoot(), 0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
+            assertStateFile(temp.getRoot(), 0, 0, (i + 1) * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 0, (i + 1) * (6 + OVERHEAD), 0, 0, 0);
         }
     }
 
@@ -69,11 +71,11 @@ public class DiskRawQueueTest {
                 String s = "test" + String.format("%02x", i);
 
                 push(queue, s);
-                assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * 10);
-                assertStateFile(queue.path().toFile(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+                assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * (6 + OVERHEAD));
+                assertStateFile(queue.path().toFile(), 0, 0, i * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 1, (i + 1) * (6 + OVERHEAD), 1, 0, 0);
 
                 assertThat(pop(queue)).isEqualTo(s);
-                assertStateFile(queue.path().toFile(), 0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
+                assertStateFile(queue.path().toFile(), 0, 0, (i + 1) * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 0, (i + 1) * (6 + OVERHEAD), 0, 0, 0);
             }
 
             assertThat(saved = queue.path()).isNotNull();
@@ -92,11 +94,11 @@ public class DiskRawQueueTest {
                 String s = "test" + String.format("%02x", i);
 
                 push(queue, s);
-                assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * 10);
-                assertStateFile(queue.path().toFile(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+                assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * (6 + OVERHEAD));
+                assertStateFile(queue.path().toFile(), 0, 0, i * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 1, (i + 1) * (6 + OVERHEAD), 1, 0, 0);
 
                 assertThat(pop(queue)).isEqualTo(s);
-                assertStateFile(queue.path().toFile(), 0, 0, (i + 1) * 10, (i + 1) * 10, 0, (i + 1) * 10, 0, 0, 0);
+                assertStateFile(queue.path().toFile(), 0, 0, (i + 1) * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 0, (i + 1) * (6 + OVERHEAD), 0, 0, 0);
             }
 
             assertThat(saved = queue.path()).isNotNull();
@@ -119,17 +121,17 @@ public class DiskRawQueueTest {
             String s = "test" + String.format("%02x", i);
 
             push(queue, s);
-            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * i);
-            assertStateFile(queue.path().toFile(), 0, 0, Math.max(0, (i - 1) * 10), i * 10, Math.min(i, 1), Math.max(0, i * 10), Math.min(i, 1), 0, 0);
+            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((6 + OVERHEAD) * i);
+            assertStateFile(queue.path().toFile(), 0, 0, Math.max(0, (i - 1) * (6 + OVERHEAD)), i * (6 + OVERHEAD), Math.min(i, 1), Math.max(0, i * (6 + OVERHEAD)), Math.min(i, 1), 0, 0);
 
             assertThat(pop(queue)).isEqualTo(s);
-            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * (i + 1));
+            assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((6 + OVERHEAD) * (i + 1));
 
-            assertStateFile(queue.path().toFile(), 0, 0, i * 10, (i + 1) * 10, 1, (i + 1) * 10, 1, 0, 0);
+            assertStateFile(queue.path().toFile(), 0, 0, i * (6 + OVERHEAD), (i + 1) * (6 + OVERHEAD), 1, (i + 1) * (6 + OVERHEAD), 1, 0, 0);
         }
 
         queue.flush();
-        assertStateFile(temp.getRoot(), 0, 0, 200, 200, 0, 200, 0, 0, 0);
+        assertStateFile(temp.getRoot(), 0, 0, 360, 360, 0, 360, 0, 0, 0);
 
     }
 
@@ -172,7 +174,7 @@ public class DiskRawQueueTest {
     public void testLimitByMaxSize() throws Exception {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
-        String s = Strings.repeat("a", 508);
+        String s = Strings.repeat("a", 500);
 
         for (int i = 0; i < 121; i++)
             push(queue, s);
@@ -197,14 +199,14 @@ public class DiskRawQueueTest {
     public void testLimitByNumberOfFiles() throws Exception {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
-        String s1 = Strings.repeat("a", 508);
+        String s1 = Strings.repeat("a", 500);
         for (int i = 0; i < 110; i++)
             push(queue, s1);
 
         queue.close();
         queue = new DiskRawQueue(temp.getRoot().toPath(), 1024 * 121);
 
-        String s2 = Strings.repeat("a", 1020);
+        String s2 = Strings.repeat("a", 1012);
         for (int i = 0; i < 11; i++)
             push(queue, s2);
 
@@ -230,7 +232,7 @@ public class DiskRawQueueTest {
     public void testRemaningBytes() throws Exception {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
-        String s = Strings.repeat("a", 508);
+        String s = Strings.repeat("a", 500);
 
         for (int i = 0; i < 60; i++)
             push(queue, s);
@@ -245,7 +247,7 @@ public class DiskRawQueueTest {
     public void testLimitByMaxSizeNoOverflow() throws Exception {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121, true, true, false);
 
-        String s = Strings.repeat("a", 508);
+        String s = Strings.repeat("a", 500);
 
         for (int i = 0; i < 121; i++)
             push(queue, s);
@@ -267,11 +269,11 @@ public class DiskRawQueueTest {
 
         push(queue, s);
         assertThat(queue.count()).isEqualTo(1);
-        assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
+        assertThat(queue.bytes()).isEqualTo(OVERHEAD + 512 * 100);
 
         push(queue, s);
         assertThat(queue.count()).isEqualTo(1);
-        assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
+        assertThat(queue.bytes()).isEqualTo(OVERHEAD + 512 * 100);
     }
 
     @Test
@@ -282,11 +284,11 @@ public class DiskRawQueueTest {
 
         push(queue, s);
         assertThat(queue.count()).isEqualTo(1);
-        assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
+        assertThat(queue.bytes()).isEqualTo(OVERHEAD + 512 * 100);
 
         push(queue, s);
         assertThat(queue.count()).isEqualTo(1);
-        assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
+        assertThat(queue.bytes()).isEqualTo(OVERHEAD + 512 * 100);
     }
 
     @Test
@@ -343,7 +345,7 @@ public class DiskRawQueueTest {
         );
 
         for (int i = 0; i < 5; i++)
-            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(516);
+            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(524);
 
         for (int i = 0; i < 5; i++)
             assertThat(pop(queue)).isEqualTo(s);
@@ -371,7 +373,7 @@ public class DiskRawQueueTest {
         assertThat(pop(queue)).isNull();
         push(queue, "abc");
         assertThat(pop(queue)).isEqualTo("abc");
-        assertBytesAndCount(queue, 7, 0);
+        assertBytesAndCount(queue, 15, 0);
     }
 
     @Test
@@ -384,7 +386,7 @@ public class DiskRawQueueTest {
             push(queue, s);
 
         for (int i = 0; i < 5; i++)
-            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(516);
+            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(524);
 
         queue.clear();
 
@@ -394,8 +396,8 @@ public class DiskRawQueueTest {
         for (int i = 0; i < 5; i++)
             push(queue, s);
         for (int i = 0; i < 5; i++)
-            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(516);
-        assertBytesAndCount(queue, 5 * 516, 5);
+            assertThat(new File(temp.getRoot(), "data0" + i).length()).isEqualTo(524);
+        assertBytesAndCount(queue, 5 * 524, 5);
     }
 
     @Test
@@ -417,7 +419,7 @@ public class DiskRawQueueTest {
         assertThat(pop(queue)).isNull();
         push(queue, "abc");
         assertThat(pop(queue)).isEqualTo("abc");
-        assertBytesAndCount(queue, 7, 0);
+        assertBytesAndCount(queue, 15, 0);
         assertThat(temp.getRoot().list()).containsOnly("state", "data06");
     }
 
@@ -445,7 +447,13 @@ public class DiskRawQueueTest {
     }
 
     private boolean push(DiskRawQueue queue, String s) throws IOException {
-        return queue.push(new Buffer(s.getBytes()));
+        return push(queue, s, 0);
+    }
+
+    private boolean push(DiskRawQueue queue, String s, long timestamp) throws IOException {
+        Buffer buffer = new Buffer(s.getBytes());
+        buffer.setTimestamp(timestamp);
+        return queue.push(buffer);
     }
 
     private String pop(DiskRawQueue queue) throws IOException {
