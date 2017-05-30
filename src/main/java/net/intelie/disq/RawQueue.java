@@ -13,8 +13,6 @@ public interface RawQueue extends AutoCloseable {
 
     long remainingCount();
 
-    long nextTimestamp();
-
     void touch() throws IOException;
 
     void clear() throws IOException;

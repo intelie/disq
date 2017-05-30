@@ -1,15 +1,13 @@
 package net.intelie.disq;
 
 import java.io.*;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 public class DataFileReader implements Closeable {
     private final DataInputStream stream;
     private final FileInputStream fis;
     private long position;
-
-    private boolean readNextTimestamp;
-    private long nextTimestamp;
 
     public DataFileReader(Path file, long position) throws IOException {
         fis = new FileInputStream(file.toFile());
@@ -23,16 +21,6 @@ public class DataFileReader implements Closeable {
             position -= fis.skip(position);
     }
 
-    public long nextTimestamp() throws IOException {
-        if (!readNextTimestamp) {
-            stream.mark(8);
-            nextTimestamp = stream.readLong();
-            stream.reset();
-            readNextTimestamp = true;
-        }
-        return nextTimestamp;
-    }
-
     public long size() throws IOException {
         return fis.getChannel().size();
     }
@@ -42,21 +30,18 @@ public class DataFileReader implements Closeable {
     }
 
     private int internalRead(Buffer buffer, boolean peek) throws IOException {
-        if (peek) stream.mark(DataFileWriter.OVERHEAD);
-        long timestamp = stream.readLong();
+        if (peek) stream.mark(4);
         int size = stream.readInt();
         if (peek) stream.reset();
 
-        stream.mark(DataFileWriter.OVERHEAD + size);
+        stream.mark(4 + size);
         int total = DataFileWriter.OVERHEAD;
 
-        buffer.setTimestamp(timestamp);
         buffer.setCount(size, false);
 
         int offset = 0;
 
-        if (peek)
-            stream.skipBytes(DataFileWriter.OVERHEAD);
+        if (peek) stream.readInt();
         while (size > 0) {
             int read = stream.read(buffer.buf(), offset, size);
             size -= read;
@@ -66,10 +51,8 @@ public class DataFileReader implements Closeable {
 
         if (peek)
             stream.reset();
-        else {
-            readNextTimestamp = false;
+        else
             position += total;
-        }
 
         return total;
     }

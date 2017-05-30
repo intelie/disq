@@ -10,8 +10,8 @@ import java.util.Arrays;
 
 public class Buffer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Buffer.class);
+
     private final int maxCapacity;
-    private long timestamp = 0;
     private byte[] buf;
     private int count;
 
@@ -35,15 +35,6 @@ public class Buffer {
         this.buf = buf;
         this.count = count;
         this.maxCapacity = maxCapacity;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public Buffer setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
-        return this;
     }
 
     public int currentCapacity() {
@@ -111,11 +102,6 @@ public class Buffer {
 
     public InputStream read(int start) {
         return new In(start);
-    }
-
-    public void reset() {
-        setCount(0, false);
-        setTimestamp(0);
     }
 
     private class Out extends OutputStream {

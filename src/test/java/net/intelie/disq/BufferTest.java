@@ -32,22 +32,6 @@ public class BufferTest {
     }
 
     @Test
-    public void testReset() throws Exception {
-        Buffer buffer = new Buffer();
-
-        PrintStream stream = new PrintStream(buffer.write());
-
-        String s = Strings.repeat("a", 511);
-        stream.print(s);
-        buffer.setTimestamp(123);
-
-        buffer.reset();
-
-        assertThat(buffer.count()).isEqualTo(0);
-        assertThat(buffer.getTimestamp()).isEqualTo(0);
-    }
-
-    @Test
     public void testSetCapacityGreaterThanWhatIsAllowed() throws Exception {
         Buffer buffer = new Buffer(100, 1000);
 
@@ -97,15 +81,6 @@ public class BufferTest {
         assertThat(buffer.count()).isEqualTo(100);
         assertThat(buffer.currentCapacity()).isEqualTo(128);
         assertThat(buffer.buf()[0]).isEqualTo((byte) 0);
-    }
-
-    @Test
-    public void testSetAndGetTimestamp() throws Exception {
-        Buffer buffer = new Buffer();
-
-        buffer.setTimestamp(123);
-
-        assertThat(buffer.getTimestamp()).isEqualTo(123);
     }
 
     @Test

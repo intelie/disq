@@ -226,6 +226,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         if (obj == null)
             throw new NullPointerException("Null elements not allowed in persistent queue.");
 
+        buffer.setCount(0, false);
         OutputStream write = buffer.write();
         if (compress) write = new DeflaterOutputStream(write);
         try {
@@ -295,7 +296,6 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
 
         try {
-            buffer.reset();
             return op.call(buffer);
         } finally {
             pool.offer(ref);
