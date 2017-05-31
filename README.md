@@ -1,6 +1,6 @@
 # Disq
 
-Simple, fast, disk-based queue and task executor for Java 8.
+Simple, fast, disk-backed queue and task executor for Java 8.
 
 **Features:**
 * `PersistentQueue<T>`: a disk-backed blocking queue;
