@@ -8,7 +8,7 @@ Simple, fast, disk-based queue and task executor for Java 8.
 
 ## Usage
 
-Omnicron is available through Maven Central repository, just add the following
+Disq is available through Maven Central repository, just add the following
 dependency to your `pom.xml` file:
 
 ```xml
