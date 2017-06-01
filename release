@@ -9,7 +9,7 @@ if [ $# -lt 2 ]; then
 fi
 
 mvn versions:set -DnewVersion=$1
-mvn -P release clean deploy
+mvn -P release clean deploy -Dgpg.executable=gpg2
 
 #prune old tags
 git fetch origin --prune +refs/tags/*:refs/tags/*
