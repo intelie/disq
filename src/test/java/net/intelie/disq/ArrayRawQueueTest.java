@@ -19,6 +19,15 @@ public class ArrayRawQueueTest {
     }
 
     @Test
+    public void testPushBufferLargerThan256Bytes() throws Exception {
+        ArrayRawQueue queue = new ArrayRawQueue(280, true);
+
+        String s = Strings.repeat("a", 257);
+        push(queue, s);
+        assertThat(pop(queue)).isEqualTo(s);
+    }
+
+    @Test
     public void testSimplePushsAndPops() throws Exception {
         ArrayRawQueue queue = new ArrayRawQueue(10, true);
 
