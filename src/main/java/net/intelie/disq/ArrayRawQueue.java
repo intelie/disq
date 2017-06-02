@@ -125,7 +125,7 @@ public class ArrayRawQueue implements RawQueue {
     private void writeInt(int value) {
         for (int i = 0; i < 4; i++) {
             memory[(begin + this.bytes + 3 - i) % memory.length] = (byte) (value & 0xFF);
-            value <<= 8;
+            value >>= 8;
         }
     }
 }
