@@ -6,7 +6,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,7 +56,7 @@ public class PersistentQueueTest {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
 
-        assertThatThrownBy(()->queue.push(null))
+        assertThatThrownBy(() -> queue.push(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("Null elements not allowed in persistent queue.");
     }
@@ -196,6 +196,28 @@ public class PersistentQueueTest {
         queue.push(Strings.repeat("a", 10000));
 
         assertThat(queue.bytes()).isLessThan(10000);
+    }
+
+    @Test
+    public void canStillUseTheQueueIfCompressedOptionChanges() throws Exception {
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 100000000);
+        try (PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, true)) {
+            for (int i = 0; i < 100; i++)
+                queue.push("aaa");
+        }
+
+        bq.reopen();
+        try (PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false)) {
+            String s = Strings.repeat("a", 11);
+            queue.push(s);
+
+            for (int i = 0; i < 64; i++) {
+                assertThat(queue.count()).isEqualTo(101 - i);
+                assertThatThrownBy(queue::pop).isInstanceOf(Exception.class);
+            }
+            assertThat(queue.pop()).isEqualTo(null);
+            assertThat(queue.count()).isEqualTo(0);
+        }
     }
 
     @Test

@@ -17,6 +17,8 @@ public interface RawQueue extends AutoCloseable {
 
     void clear() throws IOException;
 
+    void notifyFailedRead();
+
     boolean pop(Buffer buffer) throws IOException;
 
     boolean peek(Buffer buffer) throws IOException;

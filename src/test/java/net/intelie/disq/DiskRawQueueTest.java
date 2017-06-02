@@ -5,10 +5,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -260,21 +257,6 @@ public class DiskRawQueueTest {
     }
 
     @Test
-    public void testLimitByMaxSizeOnlyTwoFiles() throws Exception {
-        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
-
-        String s = Strings.repeat("a", 512 * 100);
-
-        push(queue, s);
-        assertThat(queue.count()).isEqualTo(1);
-        assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
-
-        push(queue, s);
-        assertThat(queue.count()).isEqualTo(1);
-        assertThat(queue.bytes()).isEqualTo(4 + 512 * 100);
-    }
-
-    @Test
     public void testLimitByMaxSizeOnlyOneFile() throws Exception {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121);
 
@@ -442,6 +424,31 @@ public class DiskRawQueueTest {
         queue.reopen();
         queue.touch();
         assertThat(temp.getRoot().list()).containsOnly("state", "data05");
+    }
+
+    @Test
+    public void testAbleToDetectCorruptedFiles() throws Exception {
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 512);
+
+        for (int i = 0; i < 5; i++)
+            push(queue, s);
+
+        try (FileWriter writer = new FileWriter(new File(temp.getRoot(), "data00"))) {
+            writer.write("abcdeqwefwefwewefger");
+        }
+
+        for (int i = 0; i < 32; i++)
+            assertThatThrownBy(()->pop(queue))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Buffer overflowed");
+
+        for (int i = 0; i < 4; i++)
+            assertThat(pop(queue)).isEqualTo(s);
+        String[] files = temp.getRoot().list();
+        assertThat(files.length).isEqualTo(2);
+        assertThat(files).contains("state");
     }
 
     private boolean push(DiskRawQueue queue, String s) throws IOException {

@@ -1,10 +1,15 @@
 package net.intelie.disq;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class DiskRawQueue implements RawQueue {
+    public static final int FAILED_READ_THRESHOLD = 64;
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiskRawQueue.class);
     private final long maxSize;
     private final long dataFileLimit;
     private final Lenient lenient;
@@ -19,6 +24,7 @@ public class DiskRawQueue implements RawQueue {
     private StateFile state;
     private DataFileReader reader;
     private DataFileWriter writer;
+    private int failedReads = 0, oldFailedReads = 0;
 
     public DiskRawQueue(Path directory, long maxSize) {
         this(directory, maxSize, true, true, true);
@@ -125,10 +131,13 @@ public class DiskRawQueue implements RawQueue {
         checkNotClosed();
 
         return lenient.perform(() -> {
+            checkFailedReads();
+
             if (checkReadEOF())
                 return 0;
 
-            int read = reader().read(buffer);
+            int read = innerRead(buffer);
+
             state.addReadCount(read);
             if (flushOnRead)
                 internalFlush();
@@ -136,6 +145,25 @@ public class DiskRawQueue implements RawQueue {
             checkReadEOF();
             return 1;
         }) > 0;
+    }
+
+    private void checkFailedReads() throws IOException {
+        if (failedReads >= FAILED_READ_THRESHOLD) {
+            LOGGER.info("Detected corrupted file #{}, backing up and moving on.", state.getReadFile());
+            deleteOldestFile(true);
+        }
+    }
+
+    private int innerRead(Buffer buffer) throws IOException {
+        try {
+            int read = reader().read(buffer);
+            oldFailedReads = failedReads;
+            failedReads = 0;
+            return read;
+        } catch (Throwable e) {
+            failedReads++;
+            throw e;
+        }
     }
 
     @Override
@@ -151,15 +179,22 @@ public class DiskRawQueue implements RawQueue {
         }) > 0;
     }
 
-    private void deleteOldestFile() throws IOException {
+    private void deleteOldestFile(boolean renameFile) throws IOException {
         int currentFile = state.getReadFile();
         state.advanceReadFile(reader().size());
         reader.close();
+        failedReads = 0;
+
         internalFlush();
         reader = null;
-        tryDeleteFile(currentFile);
+        tryDeleteFile(currentFile, renameFile);
     }
 
+
+    @Override
+    public synchronized void notifyFailedRead() {
+        failedReads = oldFailedReads + 1;
+    }
 
     @Override
     public synchronized boolean push(Buffer buffer) throws IOException {
@@ -183,7 +218,7 @@ public class DiskRawQueue implements RawQueue {
     private boolean checkFutureQueueOverflow(int count) throws IOException {
         if (deleteOldestOnOverflow) {
             while (!state.sameFileReadWrite() && willOverflow(count))
-                deleteOldestFile();
+                deleteOldestFile(false);
             return false;
         } else {
             return willOverflow(count);
@@ -194,9 +229,7 @@ public class DiskRawQueue implements RawQueue {
     public void flush() throws IOException {
         checkNotClosed();
 
-        lenient.perform(() -> {
-            return internalFlush();
-        });
+        lenient.perform(this::internalFlush);
     }
 
     private long internalFlush() throws IOException {
@@ -235,7 +268,7 @@ public class DiskRawQueue implements RawQueue {
 
     private boolean checkReadEOF() throws IOException {
         while (!state.sameFileReadWrite() && state.readFileEof())
-            deleteOldestFile();
+            deleteOldestFile(false);
         if (state.needsFlushBeforePop())
             internalFlush();
         return state.getCount() == 0;
@@ -275,7 +308,7 @@ public class DiskRawQueue implements RawQueue {
             Path path = makeDataPath(i);
             if (Files.exists(path)) {
                 if (!state.isInUse(i)) {
-                    tryDeleteFile(i);
+                    tryDeleteFile(i, false);
                 } else {
                     totalBytes += Files.size(path);
                     totalCount += state.getFileCount(i);
@@ -290,16 +323,28 @@ public class DiskRawQueue implements RawQueue {
 
     }
 
-    private void tryDeleteFile(int file) {
+    private void tryDeleteFile(int file, boolean renameFile) {
+        Path from = makeDataPath(file);
         try {
-            Files.delete(makeDataPath(file));
-        } catch (Exception ignored) {
-            //there is no problem in not being able to delete some files
+            if (renameFile) {
+                Path to = makeCorruptedPath(file);
+                LOGGER.info("Backing up {} as {}", from, to);
+                Files.move(from, to);
+            } else {
+                Files.delete(from);
+            }
+        } catch (Exception e) {
+            LOGGER.info("Unable to delete file {}", from);
+            LOGGER.info("Stacktrace", e);
         }
     }
 
     private Path makeDataPath(int state) {
-        return directory.resolve("data" + String.format("%02x", state));
+        return directory.resolve(String.format("data%02x", state));
+    }
+
+    private Path makeCorruptedPath(int state) {
+        return directory.resolve(String.format("data%02x.%d.corrupted", state, System.currentTimeMillis()));
     }
 
     private DataFileReader openReader() throws IOException {

@@ -49,6 +49,10 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
+    public void notifyFailedRead() {
+    }
+
+    @Override
     public synchronized boolean pop(Buffer buffer) {
         if (!peek(buffer)) return false;
         int read = 4 + buffer.count();

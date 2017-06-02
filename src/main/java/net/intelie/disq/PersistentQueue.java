@@ -179,7 +179,12 @@ public class PersistentQueue<T> implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
-            return deserialize(buffer);
+            try {
+                return deserialize(buffer);
+            } catch (Throwable e) {
+                queue.notifyFailedRead();
+                throw e;
+            }
         });
     }
 
