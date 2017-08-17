@@ -15,7 +15,7 @@ dependency to your `pom.xml` file:
 <dependency>
     <groupId>net.intelie.disq</groupId>
     <artifactId>disq</artifactId>
-    <version>0.3</version>
+    <version>0.4</version>
 </dependency>
 ```
 
