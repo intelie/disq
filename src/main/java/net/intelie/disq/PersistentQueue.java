@@ -121,7 +121,7 @@ public class PersistentQueue<T> implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
-            return deserialize(buffer);
+            return safeDeserialize(buffer);
         });
     }
 
@@ -134,7 +134,7 @@ public class PersistentQueue<T> implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
-            return deserialize(buffer);
+            return safeDeserialize(buffer);
         });
     }
 
@@ -179,13 +179,17 @@ public class PersistentQueue<T> implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
-            try {
-                return deserialize(buffer);
-            } catch (Throwable e) {
-                queue.notifyFailedRead();
-                throw e;
-            }
+            return safeDeserialize(buffer);
         });
+    }
+
+    private T safeDeserialize(Buffer buffer) throws IOException {
+        try {
+            return deserialize(buffer);
+        } catch (Throwable e) {
+            queue.notifyFailedRead();
+            throw e;
+        }
     }
 
     public boolean push(T obj) throws IOException {
@@ -245,7 +249,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         return doWithBuffer(buffer -> {
             if (!innerPeek(buffer))
                 return null;
-            return deserialize(buffer);
+            return safeDeserialize(buffer);
         });
     }
 
