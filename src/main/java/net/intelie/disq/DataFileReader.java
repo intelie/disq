@@ -2,18 +2,17 @@ package net.intelie.disq;
 
 import java.io.*;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class DataFileReader implements Closeable {
     private final DataInputStream stream;
     private final FileInputStream fis;
-    private long position;
 
     public DataFileReader(Path file, long position) throws IOException {
         fis = new FileInputStream(file.toFile());
         skipToPosition(position);
         stream = new DataInputStream(new BufferedInputStream(fis, 1024 * 1024));
-        this.position = position;
     }
 
     private void skipToPosition(long position) throws IOException {
@@ -51,8 +50,6 @@ public class DataFileReader implements Closeable {
 
         if (peek)
             stream.reset();
-        else
-            position += total;
 
         return total;
     }

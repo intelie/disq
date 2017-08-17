@@ -131,7 +131,8 @@ public class DiskRawQueue implements RawQueue {
         checkNotClosed();
 
         return lenient.perform(() -> {
-            checkFailedReads();
+            if (!checkFailedReads())
+                return 0;
 
             if (checkReadEOF())
                 return 0;
@@ -147,11 +148,17 @@ public class DiskRawQueue implements RawQueue {
         }) > 0;
     }
 
-    private void checkFailedReads() throws IOException {
+    private boolean checkFailedReads() throws IOException {
         if (failedReads >= FAILED_READ_THRESHOLD) {
             LOGGER.info("Detected corrupted file #{}, backing up and moving on.", state.getReadFile());
+            boolean wasSame = state.sameFileReadWrite();
             deleteOldestFile(true);
+            if (wasSame) {
+                clear();
+                return false;
+            }
         }
+        return true;
     }
 
     private int innerRead(Buffer buffer) throws IOException {

@@ -8,6 +8,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -440,15 +441,81 @@ public class DiskRawQueueTest {
         }
 
         for (int i = 0; i < 32; i++)
-            assertThatThrownBy(()->pop(queue))
+            assertThatThrownBy(() -> pop(queue))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Buffer overflowed");
 
         for (int i = 0; i < 4; i++)
             assertThat(pop(queue)).isEqualTo(s);
         String[] files = temp.getRoot().list();
+        Arrays.sort(files);
         assertThat(files.length).isEqualTo(2);
         assertThat(files).contains("state");
+        assertThat(files[0]).startsWith("data00").endsWith(".corrupted");
+    }
+
+    @Test
+    public void testAbleToDetectSingleCorruptedFile() throws Exception {
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 100);
+
+        push(queue, s);
+
+        try (FileWriter writer = new FileWriter(new File(temp.getRoot(), "data00"))) {
+            writer.write("abcdeqwefwefwewefger");
+        }
+
+        for (int i = 0; i < 32; i++)
+            assertThatThrownBy(() -> pop(queue))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Buffer overflowed");
+
+        push(queue, s);
+        assertThat(pop(queue)).isEqualTo(null);
+        push(queue, s);
+        assertThat(pop(queue)).isEqualTo(s);
+        assertThat(pop(queue)).isEqualTo(null);
+
+        String[] files = temp.getRoot().list();
+        Arrays.sort(files);
+        assertThat(files.length).isEqualTo(3);
+        assertThat(files).contains("state");
+        assertThat(files[1]).startsWith("data00").endsWith(".corrupted");
+    }
+
+    @Test
+    public void testAbleToDetectCorruptedFileManyPerFile() throws Exception {
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512);
+
+        String s = Strings.repeat("a", 100);
+
+        for (int i = 0; i < 20; i++) {
+            push(queue, s);
+        }
+
+        try (FileWriter writer = new FileWriter(new File(temp.getRoot(), "data00"))) {
+            writer.write("abcdeqwefwefwewefger");
+        }
+
+        for (int i = 0; i < 32; i++)
+            assertThatThrownBy(() -> pop(queue))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Buffer overflowed");
+
+
+        push(queue, s);
+        for (int i = 0; i < 15; i++) {
+            assertThat(pop(queue)).isEqualTo(s);
+        }
+
+
+        String[] files = temp.getRoot().list();
+        Arrays.sort(files);
+        assertThat(files.length).isEqualTo(3);
+        assertThat(files).contains("state");
+        assertThat(files).contains("data04");
+        assertThat(files[0]).startsWith("data00").endsWith(".corrupted");
     }
 
     private boolean push(DiskRawQueue queue, String s) throws IOException {

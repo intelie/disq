@@ -16,7 +16,23 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        test();
+        PersistentQueue<Object> q = Disq.builder()
+                .setCompress(true)
+                .setDirectory("/home/juanplopes/Downloads/test/core.storage.main")
+                .buildPersistentQueue();
+
+        for (int i = 0; i < 100; i++)
+            q.push("hi");
+        while (q.count() > 0) {
+            try {
+                System.out.println(q.pop());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        //test();
 
         /*try (PersistentQueue<String> queue = open()) {
             queue.clear();
