@@ -68,6 +68,10 @@ public class Buffer {
         count = newCount;
     }
 
+    public void ensureCapacity(int capacity) {
+        ensureCapacity(capacity, false);
+    }
+
     public void ensureCapacity(int capacity, boolean preserve) {
         if (capacity <= buf.length) return;
         int newCapacity = findBestNewCapacity(capacity);

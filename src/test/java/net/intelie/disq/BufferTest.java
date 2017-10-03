@@ -4,15 +4,26 @@ import com.google.common.base.Strings;
 import com.google.common.io.CharStreams;
 import org.junit.Test;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.io.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BufferTest {
+    @Test
+    public void testEnsureCapacity() throws Exception {
+        Buffer buffer = new Buffer(13, 1<<25);
+        assertThat(buffer.currentCapacity()).isEqualTo(13);
+        buffer.ensureCapacity(15);
+        assertThat(buffer.currentCapacity()).isEqualTo(16);
+        buffer.ensureCapacity(17);
+        assertThat(buffer.currentCapacity()).isEqualTo(32);
+        buffer.ensureCapacity(32);
+        assertThat(buffer.currentCapacity()).isEqualTo(32);
+        buffer.ensureCapacity(64);
+        assertThat(buffer.currentCapacity()).isEqualTo(64);
+    }
+
     @Test
     public void testWriteBigString() throws Exception {
         Buffer buffer = new Buffer();
@@ -35,7 +46,7 @@ public class BufferTest {
     public void testSetCapacityGreaterThanWhatIsAllowed() throws Exception {
         Buffer buffer = new Buffer(100, 1000);
 
-        assertThatThrownBy(() -> buffer.ensureCapacity(1001, false))
+        assertThatThrownBy(() -> buffer.ensureCapacity(1001))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("1000");
     }
