@@ -1,7 +1,5 @@
 package net.intelie.disq;
 
-import com.google.common.io.ByteStreams;
-
 import java.io.IOException;
 
 /**
@@ -9,12 +7,12 @@ import java.io.IOException;
  */
 public class StringSerializer implements Serializer<String> {
     @Override
-    public void serialize(Buffer.OutStream stream, String obj) throws IOException {
-        stream.write(obj.getBytes());
+    public void serialize(Buffer buffer, String obj) throws IOException {
+        buffer.write().write(obj.getBytes());
     }
 
     @Override
-    public String deserialize(Buffer.InStream stream) throws IOException {
-        return new String(ByteStreams.toByteArray(stream));
+    public String deserialize(Buffer buffer) throws IOException {
+        return new String(buffer.buf(), 0, buffer.count());
     }
 }

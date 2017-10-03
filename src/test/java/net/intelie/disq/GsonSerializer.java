@@ -6,9 +6,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
-/**
- * Created by juanplopes2 on 19/05/17.
- */
 public class GsonSerializer<T> implements Serializer<T> {
     private final Gson gson = new Gson();
     private Class<T> clazz;
@@ -22,15 +19,15 @@ public class GsonSerializer<T> implements Serializer<T> {
     }
 
     @Override
-    public void serialize(Buffer.OutStream stream, T obj) throws IOException {
-        try (OutputStreamWriter writer = new OutputStreamWriter(stream)) {
+    public void serialize(Buffer buffer, T obj) throws IOException {
+        try (OutputStreamWriter writer = new OutputStreamWriter(buffer.write())) {
             gson.toJson(obj, writer);
         }
     }
 
     @Override
-    public T deserialize(Buffer.InStream stream) throws IOException {
-        try (InputStreamReader reader = new InputStreamReader(stream)) {
+    public T deserialize(Buffer buffer) throws IOException {
+        try (InputStreamReader reader = new InputStreamReader(buffer.read())) {
             return gson.fromJson(reader, clazz);
         }
     }

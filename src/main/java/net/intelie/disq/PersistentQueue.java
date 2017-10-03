@@ -4,26 +4,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.InflaterInputStream;
 
 public class PersistentQueue<T> implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(PersistentQueue.class);
 
     private static final long MAX_WAIT = 10_000_000_000L;
 
-    private final ConcurrentLinkedQueue<WeakReference<Buffer>> pool;
+    private final ConcurrentLinkedQueue<WeakReference<Slot>> pool;
     private final ArrayRawQueue fallback;
     private final RawQueue queue;
-    private final Serializer<T> serializer;
+    private final SerializerFactory<T> serializerFactory;
     private final int initialBufferCapacity;
     private final int maxBufferCapacity;
     private final Lock lock = new ReentrantLock();
@@ -32,14 +28,14 @@ public class PersistentQueue<T> implements AutoCloseable {
 
     private boolean popPaused, pushPaused;
 
-    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity) {
+    public PersistentQueue(RawQueue queue, SerializerFactory<T> serializer, int initialBufferCapacity, int maxBufferCapacity) {
         this(queue, serializer, initialBufferCapacity, maxBufferCapacity, 0);
     }
 
-    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, int fallbackBufferCapacity) {
+    public PersistentQueue(RawQueue queue, SerializerFactory<T> serializer, int initialBufferCapacity, int maxBufferCapacity, int fallbackBufferCapacity) {
         this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
         this.queue = queue;
-        this.serializer = serializer;
+        this.serializerFactory = serializer;
         this.initialBufferCapacity = initialBufferCapacity;
         this.maxBufferCapacity = maxBufferCapacity;
         this.pool = new ConcurrentLinkedQueue<>();
@@ -107,7 +103,7 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     public T blockingPop(long amount, TimeUnit unit) throws InterruptedException, IOException {
-        return this.<T, InterruptedException>doWithBuffer(buffer -> {
+        return this.<T, InterruptedException>doWithBuffer((buffer, serializer) -> {
             lock.lockInterruptibly();
             try {
                 long target = System.nanoTime() + unit.toNanos(amount);
@@ -119,12 +115,12 @@ public class PersistentQueue<T> implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
-            return safeDeserialize(buffer);
+            return safeDeserialize(buffer, serializer);
         });
     }
 
     public T blockingPop() throws InterruptedException, IOException {
-        return this.<T, InterruptedException>doWithBuffer(buffer -> {
+        return this.<T, InterruptedException>doWithBuffer((buffer, serializer) -> {
             lock.lockInterruptibly();
             try {
                 while (!notifyingPop(buffer))
@@ -132,13 +128,13 @@ public class PersistentQueue<T> implements AutoCloseable {
             } finally {
                 lock.unlock();
             }
-            return safeDeserialize(buffer);
+            return safeDeserialize(buffer, serializer);
         });
     }
 
     public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
-        return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
-            serialize(obj, buffer);
+        return this.<Boolean, InterruptedException>doWithBuffer((buffer, serializer) -> {
+            serialize(obj, buffer, serializer);
             lock.lockInterruptibly();
             try {
                 long target = System.nanoTime() + unit.toNanos(amount);
@@ -156,8 +152,8 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     public boolean blockingPush(T obj) throws InterruptedException, IOException {
-        return this.<Boolean, InterruptedException>doWithBuffer(buffer -> {
-            serialize(obj, buffer);
+        return this.<Boolean, InterruptedException>doWithBuffer((buffer, serializer) -> {
+            serialize(obj, buffer, serializer);
             lock.lockInterruptibly();
             try {
                 while (!notifyingPush(buffer))
@@ -170,20 +166,20 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     public T pop() throws IOException {
-        return doWithBuffer(buffer -> {
+        return doWithBuffer((buffer, serializer) -> {
             lock.lock();
             try {
                 if (!notifyingPop(buffer)) return null;
             } finally {
                 lock.unlock();
             }
-            return safeDeserialize(buffer);
+            return safeDeserialize(buffer, serializer);
         });
     }
 
-    private T safeDeserialize(Buffer buffer) throws IOException {
+    private T safeDeserialize(Buffer buffer, Serializer<T> serializer) throws IOException {
         try {
-            return deserialize(buffer);
+            return serializer.deserialize(buffer);
         } catch (Throwable e) {
             queue.notifyFailedRead();
             throw e;
@@ -191,8 +187,8 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     public boolean push(T obj) throws IOException {
-        return doWithBuffer(buffer -> {
-            serialize(obj, buffer);
+        return doWithBuffer((buffer, serializer) -> {
+            serialize(obj, buffer, serializer);
             lock.lock();
             try {
                 if (!notifyingPush(buffer)) return false;
@@ -223,25 +219,19 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
     }
 
-    private T deserialize(Buffer buffer) throws IOException {
-        return serializer.deserialize(buffer.read());
-    }
-
-    private void serialize(T obj, Buffer buffer) throws IOException {
+    private void serialize(T obj, Buffer buffer, Serializer<T> serializer) throws IOException {
         if (obj == null)
             throw new NullPointerException("Null elements not allowed in persistent queue.");
 
         buffer.setCount(0, false);
-        try (Buffer.OutStream write = buffer.write()) {
-            serializer.serialize(write, obj);
-        }
+        serializer.serialize(buffer, obj);
     }
 
     public T peek() throws IOException {
-        return doWithBuffer(buffer -> {
+        return doWithBuffer((buffer, serializer) -> {
             if (!innerPeek(buffer))
                 return null;
-            return safeDeserialize(buffer);
+            return safeDeserialize(buffer, serializer);
         });
     }
 
@@ -277,27 +267,27 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
     }
 
-    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<Q, E> op) throws IOException, E {
-        Buffer buffer = null;
-        WeakReference<Buffer> ref = null;
+    private <Q, E extends Throwable> Q doWithBuffer(BufferOp<T, Q, E> op) throws IOException, E {
+        Slot slot = null;
+        WeakReference<Slot> ref = null;
 
         for (int i = 0; i < 5; i++) {
             ref = pool.poll();
 
             if (ref == null) break; //empty pool
 
-            buffer = ref.get();
+            slot = ref.get();
 
-            if (buffer != null) break; //valid deref'd object
+            if (slot != null) break; //valid deref'd object
         }
 
-        if (buffer == null) {
-            buffer = new Buffer(initialBufferCapacity, maxBufferCapacity);
-            ref = new WeakReference<>(buffer);
+        if (slot == null) {
+            slot = new Slot();
+            ref = new WeakReference<>(slot);
         }
 
         try {
-            return op.call(buffer);
+            return op.call(slot.buffer, slot.serializer);
         } finally {
             pool.offer(ref);
         }
@@ -307,7 +297,12 @@ public class PersistentQueue<T> implements AutoCloseable {
         queue.close();
     }
 
-    private interface BufferOp<Q, E extends Throwable> {
-        Q call(Buffer buffer) throws E, IOException;
+    private interface BufferOp<T, Q, E extends Throwable> {
+        Q call(Buffer buffer, Serializer<T> serializer) throws E, IOException;
+    }
+
+    private class Slot {
+        private final Buffer buffer = new Buffer(initialBufferCapacity, maxBufferCapacity);
+        private final Serializer<T> serializer = serializerFactory.create();
     }
 }

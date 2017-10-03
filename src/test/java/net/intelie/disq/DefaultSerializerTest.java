@@ -16,10 +16,10 @@ public class DefaultSerializerTest {
         DefaultSerializer<String> serializer = new DefaultSerializer<>();
 
         Buffer buffer = new Buffer();
-        serializer.serialize(buffer.write(), "test");
+        serializer.serialize(buffer, "test");
         assertThat(buffer.count()).isEqualTo(11);
 
-        assertThat(serializer.deserialize(buffer.read())).isEqualTo("test");
+        assertThat(serializer.deserialize(buffer)).isEqualTo("test");
     }
 
     @Test
@@ -29,9 +29,9 @@ public class DefaultSerializerTest {
         DefaultSerializer<String> serializer = new DefaultSerializer<>();
 
         Buffer buffer = new Buffer();
-        serializer.serialize(buffer.write(), s);
+        serializer.serialize(buffer, s);
 
-        assertThat(serializer.deserialize(buffer.read())).isEqualTo(s);
+        assertThat(serializer.deserialize(buffer)).isEqualTo(s);
     }
 
     @Test
@@ -47,7 +47,7 @@ public class DefaultSerializerTest {
 //        System.out.println(Base64.getEncoder().encodeToString(baos.toByteArray()));
 
         Buffer buffer = new Buffer(bytes);
-        assertThatThrownBy(() -> serializer.deserialize(buffer.read()))
+        assertThatThrownBy(() -> serializer.deserialize(buffer))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("DefaultSerializerTest$Whatever")
                 .hasCauseInstanceOf(ClassNotFoundException.class);

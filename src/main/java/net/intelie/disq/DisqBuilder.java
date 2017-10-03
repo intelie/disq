@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadFactory;
 public class DisqBuilder<T> {
     private final Processor<T> processor;
 
-    private Serializer<T> serializer = new DefaultSerializer<T>();
+    private SerializerFactory<T> serializer = new DefaultSerializer<T>();
     private Path directory = null; //default to temp directory
     private long maxSize = Long.MAX_VALUE;
     private boolean flushOnPop = true;
@@ -25,7 +25,7 @@ public class DisqBuilder<T> {
         this.processor = processor;
     }
 
-    public DisqBuilder<T> setSerializer(Serializer<T> serializer) {
+    public DisqBuilder<T> setSerializer(SerializerFactory<T> serializer) {
         this.serializer = serializer;
         return this;
     }

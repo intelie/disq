@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class PersistentQueueTest {
     @Rule
@@ -229,6 +230,7 @@ public class PersistentQueueTest {
         RuntimeException exc1 = new RuntimeException();
         RuntimeException exc2 = new RuntimeException();
         Serializer<Object> serializer = mock(Serializer.class);
+        when(serializer.create()).thenReturn(serializer);
         doThrow(exc1).when(serializer).serialize(any(), any());
         doThrow(exc2).when(serializer).deserialize(any());
 

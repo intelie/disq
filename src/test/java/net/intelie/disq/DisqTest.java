@@ -235,15 +235,15 @@ public class DisqTest {
 
     private static class StringSerializer implements Serializer<String> {
         @Override
-        public void serialize(Buffer.OutStream stream, String obj) throws IOException {
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream));
+        public void serialize(Buffer buffer, String obj) throws IOException {
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(buffer.write()));
             writer.write(obj);
             writer.flush();
         }
 
         @Override
-        public String deserialize(Buffer.InStream stream) throws IOException {
-            return CharStreams.toString(new InputStreamReader(stream));
+        public String deserialize(Buffer buffer) throws IOException {
+            return CharStreams.toString(new InputStreamReader(buffer.read()));
         }
     }
 }
