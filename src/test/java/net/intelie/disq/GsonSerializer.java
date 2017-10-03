@@ -2,7 +2,9 @@ package net.intelie.disq;
 
 import com.google.gson.Gson;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 
 /**
  * Created by juanplopes2 on 19/05/17.
@@ -20,14 +22,14 @@ public class GsonSerializer<T> implements Serializer<T> {
     }
 
     @Override
-    public void serialize(OutputStream stream, T obj) throws IOException {
+    public void serialize(Buffer.OutStream stream, T obj) throws IOException {
         try (OutputStreamWriter writer = new OutputStreamWriter(stream)) {
             gson.toJson(obj, writer);
         }
     }
 
     @Override
-    public T deserialize(InputStream stream) throws IOException {
+    public T deserialize(Buffer.InStream stream) throws IOException {
         try (InputStreamReader reader = new InputStreamReader(stream)) {
             return gson.fromJson(reader, clazz);
         }

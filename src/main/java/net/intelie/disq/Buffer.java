@@ -88,26 +88,26 @@ public class Buffer {
         return newCapacity;
     }
 
-    public OutputStream write() {
+    public OutStream write() {
         return write(0);
     }
 
-    public OutputStream write(int start) {
-        return new Out(start);
+    public OutStream write(int start) {
+        return new OutStream(start);
     }
 
-    public InputStream read() {
+    public InStream read() {
         return read(0);
     }
 
-    public InputStream read(int start) {
-        return new In(start);
+    public InStream read(int start) {
+        return new InStream(start);
     }
 
-    private class Out extends OutputStream {
+    public class OutStream extends OutputStream {
         private int position;
 
-        public Out(int start) {
+        public OutStream(int start) {
             position = start;
         }
 
@@ -125,11 +125,11 @@ public class Buffer {
         }
     }
 
-    private class In extends InputStream {
+    public class InStream extends InputStream {
         private int marked = 0;
         private int position = 0;
 
-        public In(int start) {
+        public InStream(int start) {
             position = marked = start;
         }
 

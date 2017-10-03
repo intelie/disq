@@ -7,7 +7,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.InOrder;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +26,38 @@ public class DisqTest {
     @Test
     public void testTempPersistentQueue() throws Exception {
         Processor<Object> processor = mock(Processor.class);
+        Path saved = null;
+        try (Disq<Object> disq = Disq.builder(processor).build(true)) {
+            assertThat(disq.queue().fallbackQueue().remainingBytes()).isEqualTo(0);
+
+            disq.submit("test1");
+            disq.submit("test2");
+            disq.submit("test3");
+
+            assertThat(disq.count()).isEqualTo(3);
+            verifyZeroInteractions(processor);
+
+            disq.resume();
+
+            while (disq.count() > 0)
+                Thread.sleep(10);
+
+            saved = ((DiskRawQueue) disq.queue().rawQueue()).path();
+            assertThat(saved).exists();
+        }
+        InOrder ordered = inOrder(processor);
+        ordered.verify(processor).process("test1");
+        ordered.verify(processor).process("test2");
+        ordered.verify(processor).process("test3");
+        ordered.verifyNoMoreInteractions();
+
+        assertThat(saved).doesNotExist();
+    }
+
+    @Test
+    public void testExceptionOnProcessor() throws Exception {
+        Processor<Object> processor = mock(Processor.class);
+        doThrow(new Error()).when(processor).process(any());
         Path saved = null;
         try (Disq<Object> disq = Disq.builder(processor).build(true)) {
             assertThat(disq.queue().fallbackQueue().remainingBytes()).isEqualTo(0);
@@ -101,7 +136,7 @@ public class DisqTest {
         assertThat(saved).exists();
     }
 
- @Test
+    @Test
     public void testClearAndFlush() throws Exception {
         Processor<String> processor = mock(Processor.class);
         String s = Strings.repeat("a", 20);
@@ -127,7 +162,7 @@ public class DisqTest {
 
     @Test
     public void testSpecificPathCompressedueueReopening() throws Exception {
-        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
+        String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 5 - 5);
 
         Processor<String> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(anyString());
@@ -135,7 +170,6 @@ public class DisqTest {
         Path saved = null;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
-                .setCompress(true)
                 .setSerializer(new StringSerializer())
                 .setDirectory(temp.getRoot().getAbsolutePath())
                 .setFlushOnPop(false)
@@ -147,14 +181,14 @@ public class DisqTest {
             disq.submit(s + "2");
             disq.submit(s + "3");
 
-            assertThat(disq.bytes()).isEqualTo(177);
+            //assertThat(disq.bytes()).isEqualTo(177);
+            assertThat(disq.bytes()).isEqualTo(37170L);
             assertThat(disq.remainingBytes()).isEqualTo(StateFile.MIN_QUEUE_SIZE - disq.bytes());
             assertThat(disq.count()).isEqualTo(3);
             verifyZeroInteractions(processor);
         }
 
         try (Disq<String> disq = Disq.builder(processor)
-                .setCompress(true)
                 .setSerializer(new StringSerializer())
                 .setDirectory(temp.getRoot().toPath())
                 .build()) {
@@ -201,14 +235,14 @@ public class DisqTest {
 
     private static class StringSerializer implements Serializer<String> {
         @Override
-        public void serialize(OutputStream stream, String obj) throws IOException {
+        public void serialize(Buffer.OutStream stream, String obj) throws IOException {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stream));
             writer.write(obj);
             writer.flush();
         }
 
         @Override
-        public String deserialize(InputStream stream) throws IOException {
+        public String deserialize(Buffer.InStream stream) throws IOException {
             return CharStreams.toString(new InputStreamReader(stream));
         }
     }

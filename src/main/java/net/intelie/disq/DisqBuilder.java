@@ -17,7 +17,6 @@ public class DisqBuilder<T> {
     private boolean deleteOldestOnOverflow = true;
     private int initialBufferCapacity = 4096;
     private int maxBufferCapacity = -1;
-    private boolean compress = false;
     private int fallbackBufferCapacity = 0;
     private int threadCount = 1;
     private ThreadFactory threadFactory = Executors.defaultThreadFactory();
@@ -70,11 +69,6 @@ public class DisqBuilder<T> {
         return this;
     }
 
-    public DisqBuilder<T> setCompress(boolean compress) {
-        this.compress = compress;
-        return this;
-    }
-
     public DisqBuilder<T> setFallbackBufferCapacity(int fallbackBufferCapacity) {
         this.fallbackBufferCapacity = fallbackBufferCapacity;
         return this;
@@ -111,7 +105,7 @@ public class DisqBuilder<T> {
 
     public PersistentQueue<T> buildPersistentQueue(RawQueue rawQueue) {
         return new PersistentQueue<>(
-                rawQueue, serializer, initialBufferCapacity, maxBufferCapacity, compress, fallbackBufferCapacity);
+                rawQueue, serializer, initialBufferCapacity, maxBufferCapacity, fallbackBufferCapacity);
     }
 
     public DiskRawQueue buildRawQueue() {

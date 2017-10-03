@@ -22,7 +22,7 @@ public class PersistentQueueTest {
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         assertThat(queue.rawQueue()).isEqualTo(bq);
         assertThat(queue.fallbackQueue()).isInstanceOf(ArrayRawQueue.class);
@@ -54,7 +54,7 @@ public class PersistentQueueTest {
     @Test
     public void cannotPushNull() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         assertThatThrownBy(() -> queue.push(null))
                 .isInstanceOf(NullPointerException.class)
@@ -64,7 +64,7 @@ public class PersistentQueueTest {
     @Test
     public void testWhenTheDirectoryIsReadOnly() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false, 1000);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, 1000);
 
         for (int i = 0; i < 10; i++)
             assertThat(queue.push("test" + i)).isTrue();
@@ -102,7 +102,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         String s = Strings.repeat("a", 508);
 
@@ -122,7 +122,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         String s = Strings.repeat("a", 506);
 
@@ -138,7 +138,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         String s = Strings.repeat("a", 508);
 
@@ -158,7 +158,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingBoth() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
         queue.setPopPaused(true);
         queue.setPushPaused(true);
 
@@ -191,39 +191,18 @@ public class PersistentQueueTest {
     @Test
     public void canPushBigCompressing() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, true);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         queue.push(Strings.repeat("a", 10000));
 
-        assertThat(queue.bytes()).isLessThan(10000);
-    }
-
-    @Test
-    public void canStillUseTheQueueIfCompressedOptionChanges() throws Exception {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 100000000);
-        try (PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, true)) {
-            for (int i = 0; i < 100; i++)
-                queue.push("aaa");
-        }
-
-        bq.reopen();
-        try (PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false)) {
-            String s = Strings.repeat("a", 11);
-            queue.push(s);
-
-            for (int i = 0; i < 64; i++) {
-                assertThat(queue.count()).isEqualTo(101 - i);
-                assertThatThrownBy(queue::pop).isInstanceOf(Exception.class);
-            }
-            assertThat(queue.pop()).isEqualTo(null);
-            assertThat(queue.count()).isEqualTo(0);
-        }
+        //assertThat(queue.bytes()).isLessThan(10000);
+        assertThat(queue.bytes()).isEqualTo(10006);
     }
 
     @Test
     public void canClear() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -235,7 +214,7 @@ public class PersistentQueueTest {
     @Test
     public void canAvoidFlush() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
 
         for (int i = 0; i < 20; i++)
             queue.push("test" + i);
@@ -256,7 +235,7 @@ public class PersistentQueueTest {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
         bq.push(new Buffer());
 
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, serializer, 32, 1 << 16, false);
+        PersistentQueue<Object> queue = new PersistentQueue<>(bq, serializer, 32, 1 << 16);
 
         assertThat(queue.count()).isEqualTo(1);
         assertThatThrownBy(() -> queue.push("abc")).isEqualTo(exc1);

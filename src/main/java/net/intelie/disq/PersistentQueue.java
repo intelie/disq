@@ -26,24 +26,22 @@ public class PersistentQueue<T> implements AutoCloseable {
     private final Serializer<T> serializer;
     private final int initialBufferCapacity;
     private final int maxBufferCapacity;
-    private final boolean compress;
     private final Lock lock = new ReentrantLock();
     private final Condition notFull = lock.newCondition();
     private final Condition notEmpty = lock.newCondition();
 
     private boolean popPaused, pushPaused;
 
-    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress) {
-        this(queue, serializer, initialBufferCapacity, maxBufferCapacity, compress, 0);
+    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity) {
+        this(queue, serializer, initialBufferCapacity, maxBufferCapacity, 0);
     }
 
-    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, boolean compress, int fallbackBufferCapacity) {
+    public PersistentQueue(RawQueue queue, Serializer<T> serializer, int initialBufferCapacity, int maxBufferCapacity, int fallbackBufferCapacity) {
         this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
         this.queue = queue;
         this.serializer = serializer;
         this.initialBufferCapacity = initialBufferCapacity;
         this.maxBufferCapacity = maxBufferCapacity;
-        this.compress = compress;
         this.pool = new ConcurrentLinkedQueue<>();
     }
 
@@ -226,9 +224,7 @@ public class PersistentQueue<T> implements AutoCloseable {
     }
 
     private T deserialize(Buffer buffer) throws IOException {
-        InputStream read = buffer.read();
-        if (compress) read = new InflaterInputStream(read);
-        return (T) serializer.deserialize(read);
+        return serializer.deserialize(buffer.read());
     }
 
     private void serialize(T obj, Buffer buffer) throws IOException {
@@ -236,12 +232,8 @@ public class PersistentQueue<T> implements AutoCloseable {
             throw new NullPointerException("Null elements not allowed in persistent queue.");
 
         buffer.setCount(0, false);
-        OutputStream write = buffer.write();
-        if (compress) write = new DeflaterOutputStream(write);
-        try {
+        try (Buffer.OutStream write = buffer.write()) {
             serializer.serialize(write, obj);
-        } finally {
-            write.close();
         }
     }
 

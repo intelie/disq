@@ -12,12 +12,11 @@ public class Main {
 
     private static PersistentQueue<String> open() throws IOException {
         DiskRawQueue bq = new DiskRawQueue(Paths.get("/home/juanplopes/Downloads/queue"), 10L * 1024 * 1024 * 1024, false, false, false);
-        return new PersistentQueue<>(bq, new StringSerializer(), 16000, -1, false);
+        return new PersistentQueue<>(bq, new StringSerializer(), 16000, -1);
     }
 
     public static void main(String[] args) throws Exception {
         PersistentQueue<Object> q = Disq.builder()
-                .setCompress(true)
                 .setDirectory("/home/juanplopes/Downloads/test/core.storage.main")
                 .buildPersistentQueue();
 
