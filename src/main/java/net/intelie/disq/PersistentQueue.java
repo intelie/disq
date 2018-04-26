@@ -142,7 +142,7 @@ public class PersistentQueue<T> implements AutoCloseable {
                     long wait = Math.min(MAX_WAIT, target - System.nanoTime());
                     if (wait <= 0) return false;
 
-                    notFull.awaitNanos(target - System.nanoTime());
+                    notFull.awaitNanos(wait);
                 }
             } finally {
                 lock.unlock();
