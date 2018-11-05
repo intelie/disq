@@ -276,10 +276,6 @@ public class PersistentQueue<T> implements AutoCloseable {
         queue.close();
     }
 
-    private interface BufferOp<T, Q, E extends Throwable> {
-        Q call(Buffer buffer, Serializer<T> serializer) throws E, IOException;
-    }
-
     private class Slot {
         private final Buffer buffer = new Buffer(initialBufferCapacity, maxBufferCapacity);
         private final Serializer<T> serializer = serializerFactory.create();
