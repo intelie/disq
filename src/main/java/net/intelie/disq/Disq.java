@@ -116,12 +116,12 @@ public class Disq<T> implements AutoCloseable {
         public void run() {
             while (open.get()) {
                 try {
-long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
-T obj = blockingPop(nextFlushNanos);
+                    long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
+                    T obj = blockingPop(nextFlushNanos);
 
-process(obj);
+                    process(obj);
 
-maybeFlush(nextFlushNanos);
+                    maybeFlush(nextFlushNanos);
                 } catch (Throwable e) {
                     LOGGER.info("Exception processing element", e);
                 }
