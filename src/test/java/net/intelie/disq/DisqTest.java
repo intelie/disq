@@ -55,6 +55,27 @@ public class DisqTest {
     }
 
     @Test
+    public void testAutoFlushWillFlushPredictable() throws Exception {
+        Processor<Object> processor = mock(Processor.class);
+        try (Disq<Object> disq = Disq.builder(processor).setAutoFlushMs(50)
+                .setFlushOnPop(false)
+                .setFlushOnPush(false)
+                .build(true)) {
+            long start = System.currentTimeMillis();
+            for (int i = 0; i < 100; i++) {
+                disq.submit("test");
+                Thread.sleep(1);
+            }
+            disq.resume();
+            while (disq.count() > 0)
+                Thread.sleep(10);
+
+            assertThat(System.currentTimeMillis() - start).isLessThan(500);
+            assertThat(((DiskRawQueue) disq.queue().rawQueue()).flushCount()).isLessThan(20);
+        }
+    }
+
+    @Test
     public void testExceptionOnProcessor() throws Exception {
         Processor<Object> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(any());

@@ -25,6 +25,7 @@ public class DiskRawQueue implements RawQueue {
     private DataFileReader reader;
     private DataFileWriter writer;
     private int failedReads = 0, oldFailedReads = 0;
+    private long flushCount = 0;
 
     public DiskRawQueue(Path directory, long maxSize) {
         this(directory, maxSize, true, true, true);
@@ -101,6 +102,10 @@ public class DiskRawQueue implements RawQueue {
         checkNotClosed();
 
         return lenient.performSafe(() -> maxSize - state.getBytes(), 0);
+    }
+
+    public long flushCount() {
+        return flushCount;
     }
 
     @Override
@@ -243,6 +248,7 @@ public class DiskRawQueue implements RawQueue {
         if (writer != null)
             writer.flush();
         state.flush();
+        flushCount++;
         return 1;
     }
 

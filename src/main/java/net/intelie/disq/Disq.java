@@ -7,21 +7,28 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Disq<T> implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Disq.class);
 
     private final List<Thread> threads;
+    private final long autoFlushNanos;
     private final List<Object> locks;
     private final PersistentQueue<T> queue;
+    private final AtomicLong nextFlush;
     private volatile AtomicBoolean open;
 
-    public Disq(ThreadFactory factory, int threads, Processor<T> processor, PersistentQueue<T> queue) {
+
+    public Disq(ThreadFactory factory, int threads, long autoFlushMs, Processor<T> processor, PersistentQueue<T> queue) {
         this.threads = new ArrayList<>(threads);
+        this.autoFlushNanos = autoFlushMs * 1_000_000;
         this.locks = new ArrayList<>();
         this.queue = queue;
         this.open = new AtomicBoolean(true);
+        this.nextFlush = autoFlushNanos > 0 ? new AtomicLong(System.nanoTime() + autoFlushNanos) : null;
 
         for (int i = 0; i < threads; i++) {
             Object shutdownLock = new Object();
@@ -39,23 +46,6 @@ public class Disq<T> implements AutoCloseable {
 
     public static <T> DisqBuilder<T> builder(Processor<T> processor) {
         return new DisqBuilder<T>(processor);
-    }
-
-    @Override
-    public void close() throws IOException, InterruptedException {
-        if (!open.getAndSet(false)) return;
-        queue.setPushPaused(true);
-        try {
-            for (int i = 0; i < threads.size(); i++) {
-                synchronized (locks.get(i)) {
-                    threads.get(i).interrupt();
-                }
-            }
-            for (Thread thread : threads)
-                thread.join();
-        } finally {
-            queue.close();
-        }
     }
 
     public PersistentQueue<T> queue() {
@@ -94,6 +84,23 @@ public class Disq<T> implements AutoCloseable {
         queue.flush();
     }
 
+    @Override
+    public void close() throws IOException, InterruptedException {
+        if (!open.getAndSet(false)) return;
+        queue.setPushPaused(true);
+        try {
+            for (int i = 0; i < threads.size(); i++) {
+                synchronized (locks.get(i)) {
+                    threads.get(i).interrupt();
+                }
+            }
+            for (Thread thread : threads)
+                thread.join();
+        } finally {
+            queue.close();
+        }
+    }
+
     private class WorkerRunnable implements Runnable {
         private final PersistentQueue<T> queue;
         private final Object shutdownLock;
@@ -111,11 +118,21 @@ public class Disq<T> implements AutoCloseable {
                 try {
                     T obj = null;
                     try {
-                        obj = queue.blockingPop();
+                        if (nextFlush != null) {
+                            long next = nextFlush.get();
+                            long wait = Math.max(next - System.nanoTime(), 0);
+                            obj = queue.blockingPop(wait, TimeUnit.NANOSECONDS);
+
+                            long now = System.nanoTime();
+                            if (now >= next && nextFlush.compareAndSet(next, now + autoFlushNanos))
+                                queue.flush();
+                        } else {
+                            obj = queue.blockingPop();
+                        }
                     } catch (InterruptedException ignored) {
                         Thread.currentThread().interrupt();
-                        continue;
                     }
+                    if (obj == null) continue;
 
                     if (processor != null) {
                         synchronized (shutdownLock) {

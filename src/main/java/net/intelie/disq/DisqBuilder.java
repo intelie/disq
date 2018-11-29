@@ -13,6 +13,7 @@ public class DisqBuilder<T> {
     private long maxSize = Long.MAX_VALUE;
     private boolean flushOnPop = true;
     private boolean flushOnPush = true;
+    private long autoFlushMs = -1;
 
     private boolean deleteOldestOnOverflow = true;
     private int initialBufferCapacity = 4096;
@@ -51,6 +52,11 @@ public class DisqBuilder<T> {
 
     public DisqBuilder<T> setFlushOnPush(boolean flushOnPush) {
         this.flushOnPush = flushOnPush;
+        return this;
+    }
+
+    public DisqBuilder<T> setAutoFlushMs(long autoFlushMs) {
+        this.autoFlushMs = autoFlushMs;
         return this;
     }
 
@@ -96,7 +102,7 @@ public class DisqBuilder<T> {
         PersistentQueue<T> queue = buildPersistentQueue();
         queue.setPopPaused(paused);
 
-        return new Disq<T>(threadFactory, threadCount, processor, queue);
+        return new Disq<T>(threadFactory, threadCount, autoFlushMs, processor, queue);
     }
 
     public PersistentQueue<T> buildPersistentQueue() {

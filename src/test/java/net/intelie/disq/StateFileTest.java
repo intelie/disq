@@ -121,7 +121,6 @@ public class StateFileTest {
 
         state.flush();
 
-
         assertThat(state.getCount()).isEqualTo(3);
         assertThat(state.getUnflushedCount()).isEqualTo(0);
         assertThat(state.getFlushedCount()).isEqualTo(3);
