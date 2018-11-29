@@ -19,8 +19,7 @@ public class Disq<T> implements AutoCloseable {
     private final List<Object> locks;
     private final PersistentQueue<T> queue;
     private final AtomicLong nextFlush;
-    private volatile AtomicBoolean open;
-
+    private final AtomicBoolean open;
 
     public Disq(ThreadFactory factory, int threads, long autoFlushMs, Processor<T> processor, PersistentQueue<T> queue) {
         this.threads = new ArrayList<>(threads);

@@ -56,7 +56,6 @@ public class DisqTest {
         assertThat(saved).doesNotExist();
     }
 
-
     @Test
     public void testAutoFlushWillFlushPredictable() throws Exception {
         Processor<Object> processor = mock(Processor.class);
