@@ -116,38 +116,51 @@ public class Disq<T> implements AutoCloseable {
         public void run() {
             while (open.get()) {
                 try {
-                    T obj = null;
-                    try {
-                        if (nextFlush != null) {
-                            long next = nextFlush.get();
-                            long wait = Math.max(next - System.nanoTime(), 0);
-                            obj = queue.blockingPop(wait, TimeUnit.NANOSECONDS);
+long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
+T obj = blockingPop(nextFlushNanos);
 
-                            long now = System.nanoTime();
-                            if (now >= next && nextFlush.compareAndSet(next, now + autoFlushNanos))
-                                queue.flush();
-                        } else {
-                            obj = queue.blockingPop();
-                        }
-                    } catch (InterruptedException ignored) {
-                        Thread.currentThread().interrupt();
-                    }
-                    if (obj == null) continue;
+process(obj);
 
-                    if (processor != null) {
-                        synchronized (shutdownLock) {
-                            boolean interrupted = Thread.interrupted();
-                            try {
-                                processor.process(obj);
-                            } finally {
-                                if (interrupted) Thread.currentThread().interrupt();
-                            }
-                        }
-                    }
+maybeFlush(nextFlushNanos);
                 } catch (Throwable e) {
                     LOGGER.info("Exception processing element", e);
                 }
             }
+        }
+
+        private void process(T obj) throws Exception {
+            if (obj == null || processor == null) return;
+            synchronized (shutdownLock) {
+                //this lock only exists to avoid a regular interrupt
+                //during processor execution
+                boolean interrupted = Thread.interrupted();
+                try {
+                    processor.process(obj);
+                } finally {
+                    if (interrupted) Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        private void maybeFlush(long nextFlushNanos) throws IOException {
+            long now = System.nanoTime();
+            if (nextFlush != null && now >= nextFlushNanos && nextFlush.compareAndSet(nextFlushNanos, now + autoFlushNanos))
+                queue.flush();
+        }
+
+        private T blockingPop(long nextFlushNanos) throws IOException {
+            T obj = null;
+            try {
+                if (nextFlush != null) {
+                    long wait = Math.max(nextFlushNanos - System.nanoTime(), 0);
+                    obj = queue.blockingPop(wait, TimeUnit.NANOSECONDS);
+                } else {
+                    obj = queue.blockingPop();
+                }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            return obj;
         }
     }
 
