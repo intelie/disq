@@ -44,6 +44,8 @@ public class DisqTest {
 
             saved = ((DiskRawQueue) disq.queue().rawQueue()).path();
             assertThat(saved).exists();
+
+            disq.close(); //to test closing twice without having to write a new test :)
         }
         InOrder ordered = inOrder(processor);
         ordered.verify(processor).process("test1");
@@ -53,6 +55,7 @@ public class DisqTest {
 
         assertThat(saved).doesNotExist();
     }
+
 
     @Test
     public void testAutoFlushWillFlushPredictable() throws Exception {

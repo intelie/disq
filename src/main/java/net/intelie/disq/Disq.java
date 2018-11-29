@@ -86,7 +86,8 @@ public class Disq<T> implements AutoCloseable {
 
     @Override
     public void close() throws IOException, InterruptedException {
-        if (!open.getAndSet(false)) return;
+        if (!open.getAndSet(false))
+            return;
         queue.setPushPaused(true);
         try {
             for (int i = 0; i < threads.size(); i++) {
@@ -129,7 +130,8 @@ public class Disq<T> implements AutoCloseable {
         }
 
         private void process(T obj) throws Exception {
-            if (obj == null || processor == null) return;
+            if (obj == null || processor == null)
+                return;
             synchronized (shutdownLock) {
                 //this lock only exists to avoid a regular interrupt
                 //during processor execution
