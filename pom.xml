@@ -6,7 +6,7 @@
 
     <groupId>net.intelie.disq</groupId>
     <artifactId>disq</artifactId>
-    <version>0.8</version>
+    <version>0.9-SNAPSHOT</version>
 
     <name>Disq</name>
     <description>Disk-backed queue for fun and profit</description>
