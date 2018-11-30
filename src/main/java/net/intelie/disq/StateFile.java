@@ -23,6 +23,7 @@ public class StateFile implements Closeable {
     private long bytes;
     private int[] fileCounts;
     private long unflushed;
+    private boolean dirty;
 
     public StateFile(Path file) throws IOException {
         this.fileCounts = new int[MAX_FILES];
@@ -38,7 +39,10 @@ public class StateFile implements Closeable {
                 for (int i = 0; i < MAX_FILES; i++)
                     fileCounts[i] = stream.readInt();
                 unflushed = 0;
+                dirty = false;
             }
+        } else {
+            dirty = true;
         }
     }
 
@@ -53,6 +57,7 @@ public class StateFile implements Closeable {
     }
 
     public void flush() throws IOException {
+        if (!dirty) return;
         buffer.position(0);
         buffer.putShort((short) readFile);
         buffer.putShort((short) writeFile);
@@ -66,6 +71,7 @@ public class StateFile implements Closeable {
         randomWrite.seek(0);
         randomWrite.write(buffer.array());
         unflushed = 0;
+        dirty = false;
     }
 
     public int getReadFile() {
@@ -84,6 +90,7 @@ public class StateFile implements Closeable {
         readFile++;
         readFile %= MAX_FILE_ID;
         readPosition = 0;
+        dirty = true;
         return readFile;
     }
 
@@ -91,6 +98,7 @@ public class StateFile implements Closeable {
         writeFile++;
         writeFile %= MAX_FILE_ID;
         writePosition = 0;
+        dirty = true;
         return writeFile;
     }
 
@@ -123,6 +131,7 @@ public class StateFile implements Closeable {
         this.bytes += bytes;
         this.writePosition += bytes;
         this.fileCounts[getWriteFile()] += 1;
+        this.dirty = true;
     }
 
     public void addReadCount(int bytes) {
@@ -130,6 +139,7 @@ public class StateFile implements Closeable {
         //does not decrement this.bytes, only when the file is deleted
         this.readPosition += bytes;
         this.fileCounts[getReadFile()] -= 1;
+        this.dirty = true;
     }
 
     public void clear() {
@@ -139,6 +149,7 @@ public class StateFile implements Closeable {
         unflushed = 0;
         for (int i = 0; i < MAX_FILES; i++)
             fileCounts[i] = 0;
+        dirty = true;
     }
 
     public long getWritePosition() {
@@ -159,6 +170,7 @@ public class StateFile implements Closeable {
         if (totalBytes != bytes || totalCount != count) {
             bytes = totalBytes;
             count = totalCount;
+            dirty = true;
             return true;
         }
         return false;
