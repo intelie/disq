@@ -238,7 +238,7 @@ public class DiskRawQueue implements RawQueue {
     }
 
     @Override
-    public void flush() throws IOException {
+    public synchronized void flush() throws IOException {
         checkNotClosed();
 
         lenient.perform(this::internalFlush);
