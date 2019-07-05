@@ -91,15 +91,15 @@ public class StateFile implements Closeable {
         readFile %= MAX_FILE_ID;
         readPosition = 0;
         dirty = true;
-        return readFile;
+        return oldCount;
     }
 
-    public int advanceWriteFile() {
+    public void advanceWriteFile() {
         writeFile++;
         writeFile %= MAX_FILE_ID;
         writePosition = 0;
         dirty = true;
-        return writeFile;
+
     }
 
     public long getReadPosition() {

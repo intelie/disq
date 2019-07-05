@@ -9,34 +9,26 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class PersistentQueue<T> implements AutoCloseable {
+public class PersistentQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(PersistentQueue.class);
 
     private static final long MAX_WAIT = 10_000_000_000L;
 
-    private final ObjectPool<Slot> pool;
     private final ArrayRawQueue fallback;
     private final RawQueue queue;
-    private final SerializerFactory<T> serializerFactory;
-    private final int initialBufferCapacity;
-    private final int maxBufferCapacity;
     private final Lock lock = new ReentrantLock();
     private final Condition notFull = lock.newCondition();
     private final Condition notEmpty = lock.newCondition();
 
     private boolean popPaused, pushPaused;
 
-    public PersistentQueue(RawQueue queue, SerializerFactory<T> serializer, int initialBufferCapacity, int maxBufferCapacity) {
-        this(queue, serializer, initialBufferCapacity, maxBufferCapacity, 0);
+    public PersistentQueue(RawQueue queue) {
+        this(queue, 0);
     }
 
-    public PersistentQueue(RawQueue queue, SerializerFactory<T> serializer, int initialBufferCapacity, int maxBufferCapacity, int fallbackBufferCapacity) {
+    public PersistentQueue(RawQueue queue, int fallbackBufferCapacity) {
         this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
         this.queue = queue;
-        this.serializerFactory = serializer;
-        this.initialBufferCapacity = initialBufferCapacity;
-        this.maxBufferCapacity = maxBufferCapacity;
-        this.pool = new ObjectPool<>(Slot::new);
     }
 
     public RawQueue rawQueue() {
@@ -100,106 +92,72 @@ public class PersistentQueue<T> implements AutoCloseable {
         fallback.flush();
     }
 
-    public T blockingPop(long amount, TimeUnit unit) throws InterruptedException, IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            lock.lockInterruptibly();
-            try {
-                long target = System.nanoTime() + unit.toNanos(amount);
-                while (!notifyingPop(slot.buffer)) {
-                    long wait = Math.min(MAX_WAIT, target - System.nanoTime());
-                    if (wait <= 0) return null;
-                    notEmpty.awaitNanos(wait);
-                }
-            } finally {
-                lock.unlock();
-            }
-            return safeDeserialize(slot.buffer, slot.serializer);
-        }
-    }
-
-    public T blockingPop() throws InterruptedException, IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            lock.lockInterruptibly();
-            try {
-                while (!notifyingPop(slot.buffer))
-                    notEmpty.awaitNanos(MAX_WAIT);
-            } finally {
-                lock.unlock();
-            }
-            return safeDeserialize(slot.buffer, slot.serializer);
-        }
-    }
-
-    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            serialize(obj, slot.buffer, slot.serializer);
-            lock.lockInterruptibly();
-            try {
-                long target = System.nanoTime() + unit.toNanos(amount);
-                while (!notifyingPush(slot.buffer)) {
-                    long wait = Math.min(MAX_WAIT, target - System.nanoTime());
-                    if (wait <= 0) return false;
-
-                    notFull.awaitNanos(wait);
-                }
-            } finally {
-                lock.unlock();
-            }
-            return true;
-        }
-    }
-
-    public boolean blockingPush(T obj) throws InterruptedException, IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            serialize(obj, slot.buffer, slot.serializer);
-            lock.lockInterruptibly();
-            try {
-                while (!notifyingPush(slot.buffer))
-                    notFull.awaitNanos(MAX_WAIT);
-            } finally {
-                lock.unlock();
-            }
-            return true;
-        }
-    }
-
-    public T pop() throws IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            lock.lock();
-            try {
-                if (!notifyingPop(slot.buffer)) return null;
-            } finally {
-                lock.unlock();
-            }
-            return safeDeserialize(slot.buffer, slot.serializer);
-        }
-    }
-
-    private T safeDeserialize(Buffer buffer, Serializer<T> serializer) throws IOException {
+    public boolean blockingPop(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException, IOException {
+        lock.lockInterruptibly();
         try {
-            return serializer.deserialize(buffer);
-        } catch (Throwable e) {
-            queue.notifyFailedRead();
-            throw e;
+            long target = System.nanoTime() + unit.toNanos(amount);
+            while (!notifyingPop(buffer)) {
+                long wait = Math.min(MAX_WAIT, target - System.nanoTime());
+                if (wait <= 0) return false;
+                notEmpty.awaitNanos(wait);
+            }
+        } finally {
+            lock.unlock();
+        }
+        return true;
+    }
+
+    public void blockingPop(Buffer buffer) throws InterruptedException, IOException {
+        lock.lockInterruptibly();
+        try {
+            while (!notifyingPop(buffer))
+                notEmpty.awaitNanos(MAX_WAIT);
+        } finally {
+            lock.unlock();
         }
     }
 
-    public boolean push(T obj) throws IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            serialize(obj, slot.buffer, slot.serializer);
-            lock.lock();
-            try {
-                if (!notifyingPush(slot.buffer)) return false;
-            } finally {
-                lock.unlock();
+    public boolean blockingPush(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException, IOException {
+        lock.lockInterruptibly();
+        try {
+            long target = System.nanoTime() + unit.toNanos(amount);
+            while (!notifyingPush(buffer)) {
+                long wait = Math.min(MAX_WAIT, target - System.nanoTime());
+                if (wait <= 0) return false;
+
+                notFull.awaitNanos(wait);
             }
-            return true;
+        } finally {
+            lock.unlock();
+        }
+        return true;
+    }
+
+    public void blockingPush(Buffer buffer) throws InterruptedException, IOException {
+        lock.lockInterruptibly();
+        try {
+            while (!notifyingPush(buffer))
+                notFull.awaitNanos(MAX_WAIT);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean pop(Buffer buffer) throws IOException {
+        lock.lock();
+        try {
+            return notifyingPop(buffer);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean push(Buffer buffer) throws IOException {
+        lock.lock();
+        try {
+            return notifyingPush(buffer);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -223,24 +181,7 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
     }
 
-    private void serialize(T obj, Buffer buffer, Serializer<T> serializer) throws IOException {
-        if (obj == null)
-            throw new NullPointerException("Null elements not allowed in persistent queue.");
-
-        buffer.setCount(0, false);
-        serializer.serialize(buffer, obj);
-    }
-
-    public T peek() throws IOException {
-        try (ObjectPool<Slot>.Ref ref = pool.acquire()) {
-            Slot slot = ref.obj();
-            if (!innerPeek(slot.buffer))
-                return null;
-            return safeDeserialize(slot.buffer, slot.serializer);
-        }
-    }
-
-    private boolean innerPeek(Buffer buffer) {
+    public boolean peek(Buffer buffer) {
         if (popPaused) return false;
         if (fallback.peek(buffer)) return true;
 
@@ -272,12 +213,11 @@ public class PersistentQueue<T> implements AutoCloseable {
         }
     }
 
-    public void close() {
-        queue.close();
+    public void notifyFailedRead() {
+        queue.notifyFailedRead();
     }
 
-    private class Slot {
-        private final Buffer buffer = new Buffer(initialBufferCapacity, maxBufferCapacity);
-        private final Serializer<T> serializer = serializerFactory.create();
+    public void close() {
+        queue.close();
     }
 }
