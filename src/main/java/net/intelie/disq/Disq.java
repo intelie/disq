@@ -17,14 +17,17 @@ public class Disq<T> implements AutoCloseable {
 
     private final List<Thread> threads;
     private final long autoFlushNanos;
+    private final SerializerPool<T> serializerPool;
     private final List<Object> locks;
     private final PersistentQueue queue;
     private final AtomicLong nextFlush;
     private final AtomicBoolean open;
 
-    public Disq(ThreadFactory factory, int threads, long autoFlushMs, Processor<T> processor, PersistentQueue queue) {
+    public Disq(ThreadFactory factory, int threads, long autoFlushMs, SerializerPool<T> serializerPool,
+                Processor<T> processor, PersistentQueue queue) {
         this.threads = new ArrayList<>(threads);
         this.autoFlushNanos = autoFlushMs * 1_000_000;
+        this.serializerPool = serializerPool;
         this.locks = new ArrayList<>();
         this.queue = queue;
         this.open = new AtomicBoolean(true);
@@ -48,7 +51,7 @@ public class Disq<T> implements AutoCloseable {
         return new DisqBuilder<T>(processor);
     }
 
-    public PersistentQueue<T> queue() {
+    public PersistentQueue queue() {
         return queue;
     }
 
@@ -65,7 +68,9 @@ public class Disq<T> implements AutoCloseable {
     }
 
     public boolean submit(T obj) throws IOException {
-        return open.get() && queue.push(obj);
+        try (SerializerPool<T>.Slot slot = serializerPool.acquire()) {
+            return open.get() && slot.push(queue, obj);
+        }
     }
 
     public void pause() {
@@ -103,33 +108,33 @@ public class Disq<T> implements AutoCloseable {
     }
 
     private class WorkerRunnable implements Runnable {
-        private final Buffer buffer = new Buffer();
-        private final Serializer<T> serializer;
         private final PersistentQueue queue;
         private final Object shutdownLock;
         private final Processor<T> processor;
 
-        public WorkerRunnable(PersistentQueue queue, Serializer<T> serializer, Object shutdownLock, Processor<T> processor) {
+        public WorkerRunnable(PersistentQueue queue, Object shutdownLock, Processor<T> processor) {
             this.queue = queue;
-            this.serializer = serializer;
             this.shutdownLock = shutdownLock;
             this.processor = processor;
         }
 
         @Override
         public void run() {
-            while (open.get()) {
-                try {
-                    long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
-                    T obj = blockingPop(nextFlushNanos);
+            try (SerializerPool<T>.Slot slot = serializerPool.acquire()) {
+                while (open.get()) {
+                    try {
+                        long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
+                        T obj = blockingPop(slot, nextFlushNanos);
 
-                    process(obj);
+                        process(obj);
 
-                    maybeFlush(nextFlushNanos);
-                } catch (Throwable e) {
-                    LOGGER.info("Exception processing element", e);
+                        maybeFlush(nextFlushNanos);
+                    } catch (Throwable e) {
+                        LOGGER.info("Exception processing element", e);
+                    }
                 }
             }
+
         }
 
         private void process(T obj) throws Exception {
@@ -153,14 +158,15 @@ public class Disq<T> implements AutoCloseable {
                 queue.flush();
         }
 
-        private T blockingPop(long nextFlushNanos) throws IOException {
+        private T blockingPop(SerializerPool<T>.Slot slot, long nextFlushNanos) throws IOException {
             T obj = null;
             try {
+                boolean result;
                 if (nextFlush != null) {
                     long wait = Math.max(nextFlushNanos - System.nanoTime(), 0);
-                    obj = queue.blockingPop(wait, TimeUnit.NANOSECONDS);
+                    obj = slot.blockingPop(queue, wait, TimeUnit.NANOSECONDS);
                 } else {
-                    obj = queue.blockingPop();
+                    obj = slot.blockingPop(queue);
                 }
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();

@@ -92,7 +92,7 @@ public class PersistentQueue {
         fallback.flush();
     }
 
-    public boolean blockingPop(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException, IOException {
+    public boolean blockingPop(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
         lock.lockInterruptibly();
         try {
             long target = System.nanoTime() + unit.toNanos(amount);
@@ -107,7 +107,7 @@ public class PersistentQueue {
         return true;
     }
 
-    public void blockingPop(Buffer buffer) throws InterruptedException, IOException {
+    public void blockingPop(Buffer buffer) throws InterruptedException {
         lock.lockInterruptibly();
         try {
             while (!notifyingPop(buffer))
@@ -117,7 +117,7 @@ public class PersistentQueue {
         }
     }
 
-    public boolean blockingPush(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException, IOException {
+    public boolean blockingPush(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
         lock.lockInterruptibly();
         try {
             long target = System.nanoTime() + unit.toNanos(amount);
@@ -133,7 +133,7 @@ public class PersistentQueue {
         return true;
     }
 
-    public void blockingPush(Buffer buffer) throws InterruptedException, IOException {
+    public void blockingPush(Buffer buffer) throws InterruptedException {
         lock.lockInterruptibly();
         try {
             while (!notifyingPush(buffer))
@@ -143,7 +143,7 @@ public class PersistentQueue {
         }
     }
 
-    public boolean pop(Buffer buffer) throws IOException {
+    public boolean pop(Buffer buffer) {
         lock.lock();
         try {
             return notifyingPop(buffer);
@@ -152,7 +152,7 @@ public class PersistentQueue {
         }
     }
 
-    public boolean push(Buffer buffer) throws IOException {
+    public boolean push(Buffer buffer) {
         lock.lock();
         try {
             return notifyingPush(buffer);
