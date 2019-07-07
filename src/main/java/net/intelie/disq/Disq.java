@@ -159,19 +159,17 @@ public class Disq<T> implements AutoCloseable {
         }
 
         private T blockingPop(SerializerPool<T>.Slot slot, long nextFlushNanos) throws IOException {
-            T obj = null;
             try {
-                boolean result;
                 if (nextFlush != null) {
                     long wait = Math.max(nextFlushNanos - System.nanoTime(), 0);
-                    obj = slot.blockingPop(queue, wait, TimeUnit.NANOSECONDS);
+                    return slot.blockingPop(queue, wait, TimeUnit.NANOSECONDS);
                 } else {
-                    obj = slot.blockingPop(queue);
+                    return slot.blockingPop(queue);
                 }
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
-            return obj;
+            return null;
         }
     }
 

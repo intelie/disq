@@ -23,10 +23,10 @@ public class ObjectPool<T> {
     public ObjectPool(Function<Ref, T> factory, int minPoolSize, int maxRetries) {
         this.maxRetries = maxRetries;
         this.factory = factory;
-        this.strong = initMinPool(factory, minPoolSize);
+        this.strong = initMinPool(minPoolSize);
     }
 
-    private List<T> initMinPool(Function<Ref, T> factory, int minPoolSize) {
+    private List<T> initMinPool(int minPoolSize) {
         List<T> strong = new ArrayList<>();
         for (int i = 0; i < minPoolSize; i++) {
             try (Ref ref = new Ref()) {

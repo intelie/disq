@@ -213,10 +213,6 @@ public class PersistentQueue {
         }
     }
 
-    public void notifyFailedRead() {
-        queue.notifyFailedRead();
-    }
-
     public void close() {
         queue.close();
     }
