@@ -49,11 +49,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public void notifyFailedRead() {
-    }
-
-    @Override
-    public synchronized boolean pop(Buffer buffer) {
+    public synchronized boolean pop(Buffer buffer) throws IOException {
         if (!peek(buffer)) return false;
         int read = 4 + buffer.count();
         begin = (begin + read) % memory.length;
@@ -63,7 +59,7 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized boolean peek(Buffer buffer) {
+    public synchronized boolean peek(Buffer buffer) throws IOException {
         if (bytes == 0) return false;
         int size = readInt();
         buffer.setCount(size, false);

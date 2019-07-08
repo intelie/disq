@@ -204,11 +204,6 @@ public class DiskRawQueue implements RawQueue {
 
 
     @Override
-    public synchronized void notifyFailedRead() {
-        failedReads = oldFailedReads + 1;
-    }
-
-    @Override
     public synchronized boolean push(Buffer buffer) throws IOException {
         checkNotClosed();
 

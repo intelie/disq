@@ -442,7 +442,7 @@ public class DiskRawQueueTest {
 
         for (int i = 0; i < 32; i++)
             assertThatThrownBy(() -> pop(queue))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(IOException.class)
                     .hasMessageContaining("Buffer overflowed");
 
         for (int i = 0; i < 4; i++)
@@ -468,7 +468,7 @@ public class DiskRawQueueTest {
 
         for (int i = 0; i < 32; i++)
             assertThatThrownBy(() -> pop(queue))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(IOException.class)
                     .hasMessageContaining("Buffer overflowed");
 
         push(queue, s);
@@ -500,7 +500,7 @@ public class DiskRawQueueTest {
 
         for (int i = 0; i < 32; i++)
             assertThatThrownBy(() -> pop(queue))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(IOException.class)
                     .hasMessageContaining("Buffer overflowed");
 
 

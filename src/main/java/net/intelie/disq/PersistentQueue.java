@@ -145,20 +145,24 @@ public class PersistentQueue {
 
     public boolean pop(Buffer buffer) {
         lock.lock();
+        boolean answer;
         try {
-            return notifyingPop(buffer);
+            answer = notifyingPop(buffer);
         } finally {
             lock.unlock();
         }
+        return answer;
     }
 
     public boolean push(Buffer buffer) {
         lock.lock();
+        boolean answer;
         try {
-            return notifyingPush(buffer);
+            answer = notifyingPush(buffer);
         } finally {
             lock.unlock();
         }
+        return answer;
     }
 
     private boolean notifyingPop(Buffer buffer) {
@@ -183,9 +187,9 @@ public class PersistentQueue {
 
     public boolean peek(Buffer buffer) {
         if (popPaused) return false;
-        if (fallback.peek(buffer)) return true;
 
         try {
+            if (fallback.peek(buffer)) return true;
             return queue.peek(buffer);
         } catch (IOException e) {
             LOGGER.info("Error peeking", e);
@@ -194,9 +198,9 @@ public class PersistentQueue {
     }
 
     private boolean innerPop(Buffer buffer) {
-        if (fallback.pop(buffer)) return true;
 
         try {
+            if (fallback.pop(buffer)) return true;
             return queue.pop(buffer);
         } catch (IOException e) {
             LOGGER.info("Error popping", e);

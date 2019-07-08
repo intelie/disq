@@ -5,6 +5,7 @@ import com.google.common.io.CharStreams;
 import org.junit.Test;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class BufferTest {
     @Test
     public void testEnsureCapacity() throws Exception {
-        Buffer buffer = new Buffer(13, 1<<25);
+        Buffer buffer = new Buffer(13, 1 << 25);
         assertThat(buffer.currentCapacity()).isEqualTo(13);
         buffer.ensureCapacity(15);
         assertThat(buffer.currentCapacity()).isEqualTo(16);
@@ -47,7 +48,7 @@ public class BufferTest {
         Buffer buffer = new Buffer(100, 1000);
 
         assertThatThrownBy(() -> buffer.ensureCapacity(1001))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessageContaining("1000");
     }
 
@@ -65,15 +66,15 @@ public class BufferTest {
     public void testWriteBigStringThatExceedsCapacity() throws Exception {
         Buffer buffer = new Buffer(300);
 
-        PrintStream stream = new PrintStream(buffer.write());
+        Buffer.OutStream stream = buffer.write();
 
         String s = Strings.repeat("a", 300);
-        stream.print(s);
+        stream.write(s.getBytes(StandardCharsets.UTF_8));
 
         assertThat(buffer.currentCapacity()).isEqualTo(300);
 
         assertThatThrownBy(() -> stream.write('a'))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(IOException.class)
                 .hasMessageContaining("Buffer overflowed")
                 .hasMessageContaining("301/300 bytes");
     }

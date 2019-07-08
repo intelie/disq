@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public class SerializerPool<T> {
-    private final ObjectPool<Slot> pool = new ObjectPool<>(Slot::new);
+    private final ObjectPool<Slot> pool;
     private final SerializerFactory<T> factory;
     private final int initialBufferSize;
     private final int maxBufferSize;
@@ -14,6 +14,7 @@ public class SerializerPool<T> {
         this.factory = factory;
         this.initialBufferSize = initialBufferSize;
         this.maxBufferSize = maxBufferSize;
+        this.pool = new ObjectPool<>(Slot::new);
     }
 
     public Slot acquire() {
@@ -42,6 +43,18 @@ public class SerializerPool<T> {
             return queue.push(buffer);
         }
 
+        public T pop(PersistentQueue queue) throws IOException {
+            if (!queue.pop(buffer))
+                return null;
+            return serializer.deserialize(buffer);
+        }
+
+        public T peek(PersistentQueue queue) throws IOException {
+            if (!queue.peek(buffer))
+                return null;
+            return serializer.deserialize(buffer);
+        }
+
         public T blockingPop(PersistentQueue queue) throws InterruptedException, IOException {
             queue.blockingPop(buffer);
             return serializer.deserialize(buffer);
@@ -53,8 +66,16 @@ public class SerializerPool<T> {
             return serializer.deserialize(buffer);
         }
 
-        public void serialize(T obj) throws IOException {
+        public void blockingPush(PersistentQueue queue, T obj) throws InterruptedException, IOException {
+            serializer.serialize(buffer, obj);
+            queue.blockingPush(buffer);
         }
+
+        public boolean blockingPush(PersistentQueue queue, T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
+            serializer.serialize(buffer, obj);
+            return queue.blockingPush(buffer, amount, unit);
+        }
+
 
         public Buffer buffer() {
             return buffer;

@@ -57,28 +57,28 @@ public class Buffer {
         return Arrays.copyOf(buf, count);
     }
 
-    public void setCountAtLeast(int newCount, boolean preserve) {
+    public void setCountAtLeast(int newCount, boolean preserve) throws IOException {
         if (newCount > count) {
             setCount(newCount, preserve);
         }
     }
 
-    public void setCount(int newCount, boolean preserve) {
+    public void setCount(int newCount, boolean preserve) throws IOException {
         ensureCapacity(newCount, preserve);
         count = newCount;
     }
 
-    public void ensureCapacity(int capacity) {
+    public void ensureCapacity(int capacity) throws IOException {
         ensureCapacity(capacity, false);
     }
 
-    public void ensureCapacity(int capacity, boolean preserve) {
+    public void ensureCapacity(int capacity, boolean preserve) throws IOException {
         if (capacity <= buf.length) return;
         int newCapacity = findBestNewCapacity(capacity);
 
         if (capacity > newCapacity) {
             LOGGER.info("Buffer overflowed. Len={}, Max={}", capacity, maxCapacity);
-            throw new IllegalStateException("Buffer overflowed: " + capacity + "/" + maxCapacity + " bytes");
+            throw new IOException("Buffer overflowed: " + capacity + "/" + maxCapacity + " bytes");
         }
 
         if (preserve) buf = Arrays.copyOf(buf, newCapacity);

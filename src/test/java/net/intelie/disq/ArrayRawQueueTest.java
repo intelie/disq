@@ -16,7 +16,6 @@ public class ArrayRawQueueTest {
         queue.touch();
         queue.flush();
         queue.close();
-        queue.notifyFailedRead();
     }
 
     @Test

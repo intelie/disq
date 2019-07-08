@@ -235,15 +235,28 @@ public class DisqTest {
     public void testMaxBufferSize() throws Exception {
         String s = Strings.repeat("a", 1001);
 
-        PersistentQueue<Object> queue = Disq.builder()
+        DisqBuilder<String> builder = Disq.builder((String x) -> {
+        })
+                .setSerializer(StringSerializer::new)
                 .setInitialBufferCapacity(100)
-                .setMaxBufferCapacity(1000)
-                .buildPersistentQueue();
+                .setMaxBufferCapacity(1000);
 
-        assertThatThrownBy(() -> queue.push(s))
-                .isInstanceOf(IllegalStateException.class)
+        SerializerPool<String> pool = builder.buildSerializerPool();
+        PersistentQueue queue = builder.buildPersistentQueue();
+
+
+        try (SerializerPool<String>.Slot slot = pool.acquire()) {
+            assertThat(slot.buffer().currentCapacity()).isEqualTo(100);
+        }
+
+        assertThatThrownBy(() -> {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                slot.push(queue, s);
+            }
+        })
+                .isInstanceOf(IOException.class)
                 .hasMessageContaining("Buffer overflowed")
-                .hasMessageContaining("1008/1000");
+                .hasMessageContaining("1001/1000");
     }
 
     @Test

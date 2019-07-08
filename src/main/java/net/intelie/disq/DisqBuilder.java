@@ -103,8 +103,12 @@ public class DisqBuilder<T> {
         queue.setPopPaused(paused);
 
         return new Disq<T>(threadFactory, threadCount, autoFlushMs,
-                new SerializerPool<>(serializer, initialBufferCapacity, maxBufferCapacity),
+                buildSerializerPool(),
                 processor, queue);
+    }
+
+    public SerializerPool<T> buildSerializerPool() {
+        return new SerializerPool<>(serializer, initialBufferCapacity, maxBufferCapacity);
     }
 
     public PersistentQueue buildPersistentQueue() {

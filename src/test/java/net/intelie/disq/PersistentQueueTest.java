@@ -7,6 +7,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,15 +25,16 @@ public class PersistentQueueTest {
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq);
+        Adapter adapter = new Adapter(queue);
 
         assertThat(queue.rawQueue()).isEqualTo(bq);
         assertThat(queue.fallbackQueue()).isInstanceOf(ArrayRawQueue.class);
 
         for (int i = 0; i < 20; i++)
-            queue.push("test" + i);
+            adapter.push("test" + i);
         for (int i = 0; i < 10; i++)
-            assertThat(queue.pop()).isEqualTo("test" + i);
+            assertThat(adapter.pop()).isEqualTo("test" + i);
         queue.close();
         queue.reopen();
 
@@ -39,36 +42,27 @@ public class PersistentQueueTest {
         assertThat(queue.remainingCount()).isEqualTo(2683);
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.bytes()).isEqualTo(230);
-        assertThat(queue.peek()).isEqualTo("test10");
+        assertThat(adapter.peek()).isEqualTo("test10");
 
         for (int i = 10; i < 20; i++)
-            assertThat(queue.pop()).isEqualTo("test" + i);
+            assertThat(adapter.pop()).isEqualTo("test" + i);
 
         assertThat(queue.count()).isEqualTo(0);
         assertThat(queue.bytes()).isEqualTo(230);
         assertThat(queue.remainingBytes()).isEqualTo(512 * 121 - 230);
         assertThat(queue.remainingCount()).isEqualTo(15488);
-        assertThat(queue.pop()).isNull();
-        assertThat(queue.peek()).isNull();
-    }
-
-    @Test
-    public void cannotPushNull() throws Exception {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
-
-        assertThatThrownBy(() -> queue.push(null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessage("Null elements not allowed in persistent queue.");
+        assertThat(adapter.pop()).isNull();
+        assertThat(adapter.peek()).isNull();
     }
 
     @Test
     public void testWhenTheDirectoryIsReadOnly() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16, 1000);
+        PersistentQueue queue = new PersistentQueue(bq, 1000);
+        Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 10; i++)
-            assertThat(queue.push("test" + i)).isTrue();
+            assertThat(adapter.push("test" + i)).isTrue();
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(5622);
@@ -80,7 +74,7 @@ public class PersistentQueueTest {
 
 
         for (int i = 10; i < 20; i++)
-            assertThat(queue.push("test" + i)).isTrue();
+            assertThat(adapter.push("test" + i)).isTrue();
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(0);
@@ -88,22 +82,22 @@ public class PersistentQueueTest {
         assertThat(queue.remainingBytes()).isEqualTo(0);
 
         for (int i = 10; i < 20; i++)
-            assertThat(queue.pop()).isEqualTo("test" + i);
+            assertThat(adapter.pop()).isEqualTo("test" + i);
 
-        assertThat(queue.pop()).isEqualTo(null);
-        assertThat(queue.peek()).isEqualTo(null);
+        assertThat(adapter.pop()).isEqualTo(null);
+        assertThat(adapter.peek()).isEqualTo(null);
 
         new File(temp.getRoot(), "state").setWritable(true);
         queue.reopen();
 
         for (int i = 0; i < 10; i++)
-            assertThat(queue.pop()).isEqualTo("test" + i);
+            assertThat(adapter.pop()).isEqualTo("test" + i);
     }
 
     @Test(timeout = 3000)
     public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
 
         String s = Strings.repeat("a", 508);
 
@@ -123,23 +117,24 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        Adapter adapter = new Adapter(queue);
 
         String s = Strings.repeat("a", 506);
 
         for (int i = 0; i < 121; i++)
-            assertThat(queue.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isTrue();
-        assertThat(queue.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isFalse();
+            assertThat(adapter.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isTrue();
+        assertThat(adapter.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isFalse();
 
         for (int i = 0; i < 121; i++)
-            assertThat(queue.blockingPop(10, TimeUnit.MILLISECONDS)).isEqualTo(s);
-        assertThat(queue.blockingPop(10, TimeUnit.MILLISECONDS)).isEqualTo(null);
+            assertThat(adapter.blockingPop(10, TimeUnit.MILLISECONDS)).isEqualTo(s);
+        assertThat(adapter.blockingPop(10, TimeUnit.MILLISECONDS)).isEqualTo(null);
     }
 
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
 
         String s = Strings.repeat("a", 508);
 
@@ -159,7 +154,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingBoth() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
         queue.setPopPaused(true);
         queue.setPushPaused(true);
 
@@ -192,9 +187,10 @@ public class PersistentQueueTest {
     @Test
     public void canPushBigCompressing() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        Adapter adapter = new Adapter(queue);
 
-        queue.push(Strings.repeat("a", 10000));
+        adapter.push(Strings.repeat("a", 10000));
 
         //assertThat(queue.bytes()).isLessThan(10000);
         assertThat(queue.bytes()).isEqualTo(10006);
@@ -203,10 +199,11 @@ public class PersistentQueueTest {
     @Test
     public void canClear() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 20; i++)
-            queue.push("test" + i);
+            adapter.push("test" + i);
         assertThat(queue.count()).isEqualTo(20);
         queue.clear();
         assertThat(queue.count()).isEqualTo(0);
@@ -215,36 +212,17 @@ public class PersistentQueueTest {
     @Test
     public void canAvoidFlush() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, GsonSerializer.make(), 32, 1 << 16);
+        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 20; i++)
-            queue.push("test" + i);
+            adapter.push("test" + i);
         assertThat(queue.count()).isEqualTo(20);
         assertThat(new File(temp.getRoot(), "state").length()).isEqualTo(0);
         queue.flush();
         assertThat(new File(temp.getRoot(), "state").length()).isEqualTo(512);
     }
 
-    @Test
-    public void serializerException() throws Exception {
-        RuntimeException exc1 = new RuntimeException();
-        RuntimeException exc2 = new RuntimeException();
-        Serializer<Object> serializer = mock(Serializer.class);
-        when(serializer.create()).thenReturn(serializer);
-        doThrow(exc1).when(serializer).serialize(any(), any());
-        doThrow(exc2).when(serializer).deserialize(any());
-
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        bq.push(new Buffer());
-
-        PersistentQueue<Object> queue = new PersistentQueue<>(bq, serializer, 32, 1 << 16);
-
-        assertThat(queue.count()).isEqualTo(1);
-        assertThatThrownBy(() -> queue.push("abc")).isEqualTo(exc1);
-        assertThat(queue.count()).isEqualTo(1);
-        assertThatThrownBy(() -> queue.pop()).isEqualTo(exc2);
-        assertThat(queue.count()).isEqualTo(0);
-    }
 
     private static abstract class ThrowableThread extends Thread {
         private Throwable t;
@@ -268,11 +246,11 @@ public class PersistentQueueTest {
     }
 
     private static class WriterThread extends ThrowableThread {
-        private final PersistentQueue<Object> queue;
+        private final Adapter queue;
         private final String s;
 
-        public WriterThread(PersistentQueue<Object> queue, String s) {
-            this.queue = queue;
+        public WriterThread(PersistentQueue queue, String s) {
+            this.queue = new Adapter(queue);
             this.s = s;
         }
 
@@ -285,11 +263,11 @@ public class PersistentQueueTest {
     }
 
     private static class ReaderThread extends ThrowableThread {
-        private final PersistentQueue<Object> queue;
+        private final Adapter queue;
         private final String s;
 
-        public ReaderThread(PersistentQueue<Object> queue, String s) {
-            this.queue = queue;
+        public ReaderThread(PersistentQueue queue, String s) {
+            this.queue = new Adapter(queue);
             this.s = s;
         }
 
@@ -297,6 +275,59 @@ public class PersistentQueueTest {
         public void runThrowable() throws Throwable {
             for (int i = 0; i < 200; i++) {
                 assertThat(queue.blockingPop()).isEqualTo(s + i);
+            }
+        }
+    }
+
+    private static class Adapter {
+        private final SerializerPool<String> pool = new SerializerPool<>(
+                () -> new GsonSerializer<>(String.class),
+                1000, -1);
+        private final PersistentQueue queue;
+
+        private Adapter(PersistentQueue queue) {
+            this.queue = queue;
+        }
+
+        public boolean push(String s) throws IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                return slot.push(queue, s);
+            }
+        }
+
+        public String pop() throws IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                return slot.pop(queue);
+            }
+        }
+
+        public void blockingPush(String s) throws InterruptedException, IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                slot.blockingPush(queue, s);
+            }
+        }
+
+        public String blockingPop() throws InterruptedException, IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                return slot.blockingPop(queue);
+            }
+        }
+
+        public boolean blockingPush(String s, long amount, TimeUnit unit) throws InterruptedException, IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                return slot.blockingPush(queue, s, amount, unit);
+            }
+        }
+
+        public String blockingPop(long amount, TimeUnit unit) throws InterruptedException, IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                return slot.blockingPop(queue, amount, unit);
+            }
+        }
+
+        public String peek() throws IOException {
+            try (SerializerPool<String>.Slot slot = pool.acquire()) {
+                return slot.peek(queue);
             }
         }
     }

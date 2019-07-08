@@ -14,7 +14,6 @@ public class DefaultSerializer<T> implements Serializer<T> {
     public void serialize(Buffer buffer, T obj) throws IOException {
         try (ObjectOutputStream oos = new ObjectOutputStream(buffer.write())) {
             oos.writeObject(obj);
-            oos.flush();
         }
     }
 

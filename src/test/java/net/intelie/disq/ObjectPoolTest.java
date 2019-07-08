@@ -13,7 +13,7 @@ public class ObjectPoolTest {
     @Test
     public void crazyTest() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(1000);
-        ObjectPool<Integer> pool = new ObjectPool<>(counter::incrementAndGet, 0, 5);
+        ObjectPool<Integer> pool = new ObjectPool<>(x -> counter.incrementAndGet(), 0, 5);
 
         Thread t1 = startThread(pool);
         Thread t2 = startThread(pool);
@@ -39,7 +39,7 @@ public class ObjectPoolTest {
     @Test
     public void crazyTestMinPool() throws InterruptedException {
         AtomicInteger counter = new AtomicInteger(1000);
-        ObjectPool<Integer> pool = new ObjectPool<>(counter::incrementAndGet);
+        ObjectPool<Integer> pool = new ObjectPool<>(x -> counter.incrementAndGet());
 
         Thread t1 = startThread(pool);
         Thread t2 = startThread(pool);
