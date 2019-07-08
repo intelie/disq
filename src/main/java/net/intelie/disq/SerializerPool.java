@@ -14,7 +14,7 @@ public class SerializerPool<T> {
         this.factory = factory;
         this.initialBufferSize = initialBufferSize;
         this.maxBufferSize = maxBufferSize;
-        this.pool = new ObjectPool<>(Slot::new);
+        this.pool = new ObjectPool<>(Slot::new, 0, 5);
     }
 
     public Slot acquire() {

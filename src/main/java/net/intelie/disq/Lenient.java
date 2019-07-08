@@ -7,25 +7,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class Lenient {
+public abstract class Lenient {
     private static final Logger LOGGER = LoggerFactory.getLogger(Lenient.class);
 
-    private final DiskRawQueue queue;
-
-    public Lenient(DiskRawQueue queue) {
-        this.queue = queue;
-    }
-
-    public long perform(Op supplier) throws IOException {
+    public static long perform(RawQueue queue, Buffer buffer, Op supplier) throws IOException {
         try {
-            queue.touch();
-            return supplier.call();
+            return supplier.call(buffer);
         } catch (Throwable e) {
             LOGGER.info("First try queue operation error", e);
             queue.reopen();
             try {
-                queue.touch();
-                return supplier.call();
+                return supplier.call(buffer);
             } catch (Throwable e2) {
                 LOGGER.info("Second try queue operation error", e2);
                 queue.reopen();
@@ -34,16 +26,16 @@ public class Lenient {
         }
     }
 
-    public long performSafe(Op supplier, long defaultValue) {
+    public static long performSafe(RawQueue queue, Buffer buffer, Op supplier, long defaultValue) {
         try {
-            return perform(supplier);
+            return perform(queue, buffer, supplier);
         } catch (Throwable e) {
             return defaultValue;
         }
     }
 
 
-    public void safeClose(AutoCloseable closeable) {
+    public static void safeClose(AutoCloseable closeable) {
         try {
             if (closeable != null)
                 closeable.close();
@@ -52,7 +44,7 @@ public class Lenient {
         }
     }
 
-    public void safeDelete(Path directory) {
+    public static void safeDelete(Path directory) {
         try {
             Files.walkFileTree(directory, new DeleteFileVisitor());
         } catch (Throwable e) {
@@ -61,8 +53,6 @@ public class Lenient {
     }
 
     public interface Op {
-        long call() throws IOException;
+        long call(Buffer buffer) throws IOException;
     }
-
-
 }

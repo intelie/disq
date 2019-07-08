@@ -1,6 +1,7 @@
 package net.intelie.disq;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -8,7 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class ObjectPool<T> {
-    private final ConcurrentLinkedQueue<Ref> queue = new ConcurrentLinkedQueue<>();
+    private final ArrayDeque<Ref> queue = new ArrayDeque<>();
     private final Function<Ref, T> factory;
     private final int maxRetries;
 
@@ -40,7 +41,9 @@ public class ObjectPool<T> {
         Ref ref = null;
 
         for (int i = 0; i < maxRetries; i++) {
-            ref = queue.poll();
+            synchronized (queue) {
+                ref = queue.poll();
+            }
 
             //either empty pool or valid deref'd object
             if (ref == null || ref.materialize()) break;
@@ -75,7 +78,9 @@ public class ObjectPool<T> {
         public void close() {
             if (obj == null) return;
             obj = null;
-            queue.offer(this);
+            synchronized (queue) {
+                queue.offer(this);
+            }
         }
     }
 }

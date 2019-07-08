@@ -2,6 +2,7 @@ package net.intelie.disq;
 
 
 import com.google.common.base.Strings;
+import net.intelie.introspective.ThreadResources;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -21,6 +22,52 @@ import static org.mockito.Mockito.when;
 public class PersistentQueueTest {
     @Rule
     public TemporaryFolder temp = new TemporaryFolder();
+
+
+    @Test
+    public void testAllocations() throws IOException, InterruptedException {
+        DiskRawQueue disk = new DiskRawQueue(temp.getRoot().toPath(), 100000000);
+
+        Buffer buffer = new Buffer("test".getBytes(StandardCharsets.UTF_8));
+
+        PersistentQueue queue = new PersistentQueue(disk);
+        Buffer buffer2 = new Buffer();
+
+
+        //warmup
+        for (int i = 0; i < 10000; i++) {
+            queue.blockingPush(buffer);
+            queue.flush();
+        }
+        for (int i = 0; i < 10000; i++)
+            queue.peek(buffer2);
+        for (int i = 0; i < 10000; i++) {
+            queue.blockingPop(buffer2);
+            queue.flush();
+        }
+
+        ThreadResources.allocatedBytes(Thread.currentThread());
+        long start = ThreadResources.allocatedBytes(Thread.currentThread());
+        for (int i = 0; i < 10000; i++) {
+            queue.blockingPush(buffer);
+            queue.flush();
+        }
+        for (int i = 0; i < 10000; i++)
+            queue.peek(buffer2);
+        for (int i = 0; i < 10000; i++) {
+            queue.blockingPop(buffer2);
+            queue.flush();
+        }
+        for (int i = 0; i < 10000; i++) {
+            queue.blockingPush(buffer);
+            queue.blockingPop(buffer2);
+        }
+
+        long end = ThreadResources.allocatedBytes(Thread.currentThread()) - start;
+        assertThat(end).isZero();
+        assertThat(disk.files()).isEqualTo(1);
+        assertThat(queue.count()).isEqualTo(0);
+    }
 
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {

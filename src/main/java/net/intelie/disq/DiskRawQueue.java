@@ -12,7 +12,6 @@ public class DiskRawQueue implements RawQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiskRawQueue.class);
     private final long maxSize;
     private final long dataFileLimit;
-    private final Lenient lenient;
     private final boolean flushOnRead;
 
     private final boolean flushOnWrite;
@@ -35,7 +34,6 @@ public class DiskRawQueue implements RawQueue {
         this.directory = directory;
         this.maxSize = Math.max(Math.min(maxSize, StateFile.MAX_QUEUE_SIZE), StateFile.MIN_QUEUE_SIZE);
         this.dataFileLimit = Math.max(512, this.maxSize / StateFile.MAX_FILES + (this.maxSize % StateFile.MAX_FILES > 0 ? 1 : 0));
-        this.lenient = new Lenient(this);
 
         this.flushOnRead = flushOnPop;
         this.flushOnWrite = flushOnPush;
@@ -68,7 +66,17 @@ public class DiskRawQueue implements RawQueue {
         gc();
     }
 
+    private synchronized boolean safeTouch() {
+        try {
+            touch();
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     public synchronized void touch() throws IOException {
+        checkNotClosed();
         if (state == null)
             internalOpen();
     }
@@ -80,28 +88,25 @@ public class DiskRawQueue implements RawQueue {
 
     @Override
     public synchronized long bytes() {
-        checkNotClosed();
-        return lenient.performSafe(() -> state.getBytes(), 0);
+        if (!safeTouch()) return 0;
+        return state.getBytes();
     }
 
     @Override
     public synchronized long count() {
-        checkNotClosed();
-
-        return lenient.performSafe(() -> state.getCount(), 0);
+        if (!safeTouch()) return 0;
+        return state.getCount();
     }
 
     public synchronized long files() {
-        checkNotClosed();
-
-        return lenient.performSafe(() -> state.getNumberOfFiles(), 0);
+        if (!safeTouch()) return 0;
+        return state.getNumberOfFiles();
     }
 
     @Override
     public synchronized long remainingBytes() {
-        checkNotClosed();
-
-        return lenient.performSafe(() -> maxSize - state.getBytes(), 0);
+        if (!safeTouch()) return 0;
+        return maxSize - state.getBytes();
     }
 
     public long flushCount() {
@@ -110,47 +115,40 @@ public class DiskRawQueue implements RawQueue {
 
     @Override
     public synchronized long remainingCount() {
-        checkNotClosed();
+        if (!safeTouch()) return 0;
 
-        return lenient.performSafe(() -> {
-            if (state.getCount() == 0) return maxSize / 4;
-            double bytesPerElement = state.getBytes() / (double) state.getCount();
-            return (long) ((maxSize - state.getBytes()) / bytesPerElement);
-        }, 0);
+        if (state.getCount() == 0) return maxSize / 4;
+        double bytesPerElement = state.getBytes() / (double) state.getCount();
+        return (long) ((maxSize - state.getBytes()) / bytesPerElement);
     }
 
     @Override
     public synchronized void clear() throws IOException {
-        checkNotClosed();
+        touch();
 
-        lenient.perform(() -> {
-            state.clear();
-            internalFlush();
-            reopen();
-            return 1;
-        });
+        state.clear();
+        internalFlush();
+        reopen();
     }
 
     @Override
     public synchronized boolean pop(Buffer buffer) throws IOException {
-        checkNotClosed();
+        touch();
 
-        return lenient.perform(() -> {
-            if (!checkFailedReads())
-                return 0;
+        if (!checkFailedReads())
+            return false;
 
-            if (checkReadEOF())
-                return 0;
+        if (checkReadEOF())
+            return false;
 
-            int read = innerRead(buffer);
+        int read = innerRead(buffer);
 
-            state.addReadCount(read);
-            if (flushOnRead)
-                internalFlush();
+        state.addReadCount(read);
+        if (flushOnRead)
+            internalFlush();
 
-            checkReadEOF();
-            return 1;
-        }) > 0;
+        checkReadEOF();
+        return true;
     }
 
     private boolean checkFailedReads() throws IOException {
@@ -180,15 +178,13 @@ public class DiskRawQueue implements RawQueue {
 
     @Override
     public synchronized boolean peek(Buffer buffer) throws IOException {
-        checkNotClosed();
+        touch();
 
-        return lenient.perform(() -> {
-            if (checkReadEOF())
-                return 0;
+        if (checkReadEOF())
+            return false;
 
-            reader().peek(buffer);
-            return 1;
-        }) > 0;
+        reader().peek(buffer);
+        return true;
     }
 
     private void deleteOldestFile(boolean renameFile) throws IOException {
@@ -205,22 +201,21 @@ public class DiskRawQueue implements RawQueue {
 
     @Override
     public synchronized boolean push(Buffer buffer) throws IOException {
-        checkNotClosed();
+        touch();
 
-        return lenient.perform(() -> {
-            checkWriteEOF();
-            if (checkFutureQueueOverflow(buffer.count()))
-                return 0;
+        checkWriteEOF();
+        if (checkFutureQueueOverflow(buffer.count()))
+            return false;
 
-            int written = writer().write(buffer);
-            state.addWriteCount(written);
-            if (flushOnWrite)
-                internalFlush();
+        int written = writer().write(buffer);
+        state.addWriteCount(written);
+        if (flushOnWrite)
+            internalFlush();
 
-            checkWriteEOF();
-            return 1;
-        }) > 0;
+        checkWriteEOF();
+        return true;
     }
+
 
     private boolean checkFutureQueueOverflow(int count) throws IOException {
         if (deleteOldestOnOverflow) {
@@ -234,17 +229,15 @@ public class DiskRawQueue implements RawQueue {
 
     @Override
     public synchronized void flush() throws IOException {
-        checkNotClosed();
-
-        lenient.perform(this::internalFlush);
+        touch();
+        internalFlush();
     }
 
-    private long internalFlush() throws IOException {
+    private void internalFlush() throws IOException {
         if (writer != null)
             writer.flush();
         state.flush();
         flushCount++;
-        return 1;
     }
 
     @Override
@@ -254,21 +247,22 @@ public class DiskRawQueue implements RawQueue {
     }
 
     private void internalClose() {
-        lenient.safeClose(reader);
+        Lenient.safeClose(reader);
         reader = null;
 
-        lenient.safeClose(writer);
+        Lenient.safeClose(writer);
         writer = null;
 
-        lenient.safeClose(state);
+        Lenient.safeClose(state);
         state = null;
 
         if (temp) {
-            lenient.safeDelete(directory);
+            Lenient.safeDelete(directory);
             directory = null;
             temp = false;
         }
     }
+
 
     private boolean willOverflow(int count) throws IOException {
         return bytes() + count + DataFileWriter.OVERHEAD > maxSize || files() >= StateFile.MAX_FILES;

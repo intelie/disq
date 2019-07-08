@@ -19,6 +19,7 @@ public class PersistentQueue {
     private final Lock lock = new ReentrantLock();
     private final Condition notFull = lock.newCondition();
     private final Condition notEmpty = lock.newCondition();
+    private final RawQueue original;
 
     private boolean popPaused, pushPaused;
 
@@ -28,11 +29,12 @@ public class PersistentQueue {
 
     public PersistentQueue(RawQueue queue, int fallbackBufferCapacity) {
         this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
-        this.queue = queue;
+        this.original = queue;
+        this.queue = new LenientRawQueue(queue);
     }
 
     public RawQueue rawQueue() {
-        return queue;
+        return original;
     }
 
     public ArrayRawQueue fallbackQueue() {
