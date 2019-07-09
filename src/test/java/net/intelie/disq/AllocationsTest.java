@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -17,12 +16,12 @@ import static org.assertj.core.api.Java6Assertions.assertThat;
 public class AllocationsTest {
     @Test
     public void testAllocationSimpleMap() throws InterruptedException {
-        int count1 = 10000;
+        int count1 = 20000;
         int count2 = 1000;
-        Semaphore semaphore = new Semaphore(0);
         MyFactory factory = new MyFactory();
 
-        Disq<Object> disq = Disq.builder(x -> semaphore.release())
+        Disq<Object> disq = Disq.builder(x -> {
+        })
                 .setThreadFactory(factory)
                 .setSerializer(NoopSerializer::new)
                 .setInitialBufferCapacity(1000)
@@ -38,19 +37,24 @@ public class AllocationsTest {
         AtomicLong result = new AtomicLong();
         Thread thread = factory.newThread(() -> {
             try {
+                disq.pause();
                 for (int i = 0; i < count1; i++) {
                     disq.submit(map);
                 }
-                semaphore.acquire(count1);
+                disq.resume();
+                while (disq.count() > 0)
+                    Thread.sleep(10);
+
                 System.out.println("OK");
 
-                disq.pause();
                 long start = factory.totalAllocations();
+                disq.pause();
                 for (int i = 0; i < count2; i++) {
                     disq.submit(map);
                 }
                 disq.resume();
-                semaphore.acquire(count2);
+                while (disq.count() > 0)
+                    Thread.sleep(10);
 
                 result.set(factory.totalAllocations() - start);
                 List<Thread> threads = factory.threads;
@@ -58,7 +62,7 @@ public class AllocationsTest {
                 for (int i = 0; i < threads.size(); i++) {
                     System.out.println(threads.get(i).getName() + " " + (factory.times[1][i] - factory.times[0][i]));
                 }
-                System.out.println(((DiskRawQueue)disq.queue().rawQueue()).flushCount());
+                System.out.println(((DiskRawQueue) disq.queue().rawQueue()).flushCount());
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
@@ -67,7 +71,7 @@ public class AllocationsTest {
         thread.start();
         thread.join();
 
-        assertThat(result.get() / (double) count2).isLessThan(5);
+        assertThat(result.get() / (double) count2).isLessThan(1);
         System.out.println(result.get() / (double) count2);
 
     }
