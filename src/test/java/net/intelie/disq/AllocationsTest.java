@@ -18,7 +18,7 @@ public class AllocationsTest {
     @Test
     public void testAllocationSimpleMap() throws InterruptedException {
         int count1 = 10000;
-        int count2 = 10000;
+        int count2 = 1000;
         Semaphore semaphore = new Semaphore(0);
         MyFactory factory = new MyFactory();
 
@@ -28,7 +28,7 @@ public class AllocationsTest {
                 .setInitialBufferCapacity(1000)
                 .setFlushOnPop(false)
                 .setFlushOnPush(false)
-                .setThreadCount(4)
+                .setThreadCount(1)
                 .build();
 
         Map map = ImmutableMap.of(
@@ -44,10 +44,12 @@ public class AllocationsTest {
                 semaphore.acquire(count1);
                 System.out.println("OK");
 
+                disq.pause();
                 long start = factory.totalAllocations();
                 for (int i = 0; i < count2; i++) {
                     disq.submit(map);
                 }
+                disq.resume();
                 semaphore.acquire(count2);
 
                 result.set(factory.totalAllocations() - start);
@@ -64,7 +66,8 @@ public class AllocationsTest {
         });
         thread.start();
         thread.join();
-        assertThat(result.get() / (double) count2).isLessThan(30);
+
+        assertThat(result.get() / (double) count2).isLessThan(5);
         System.out.println(result.get() / (double) count2);
 
     }

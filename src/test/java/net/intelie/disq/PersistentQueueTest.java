@@ -141,7 +141,7 @@ public class PersistentQueueTest {
             assertThat(adapter.pop()).isEqualTo("test" + i);
     }
 
-    @Test(timeout = 3000)
+    @Test//(timeout = 3000)
     public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
         PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
@@ -299,6 +299,7 @@ public class PersistentQueueTest {
         public WriterThread(PersistentQueue queue, String s) {
             this.queue = new Adapter(queue);
             this.s = s;
+            this.setName("WRITER");
         }
 
         @Override
@@ -316,12 +317,14 @@ public class PersistentQueueTest {
         public ReaderThread(PersistentQueue queue, String s) {
             this.queue = new Adapter(queue);
             this.s = s;
+            this.setName("READER");
         }
 
         @Override
         public void runThrowable() throws Throwable {
             for (int i = 0; i < 200; i++) {
-                assertThat(queue.blockingPop()).isEqualTo(s + i);
+                String popped = queue.blockingPop();
+                assertThat(popped).isEqualTo(s + i);
             }
         }
     }

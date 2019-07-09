@@ -5,20 +5,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class PersistentQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(PersistentQueue.class);
 
-    private static final long MAX_WAIT = 10_000_000_000L;
+    private static final long MAX_WAIT = TimeUnit.SECONDS.toNanos(10);
 
     private final ArrayRawQueue fallback;
     private final RawQueue queue;
-    private final Lock lock = new ReentrantLock();
-    private final Condition notFull = lock.newCondition();
-    private final Condition notEmpty = lock.newCondition();
     private final RawQueue original;
 
     private boolean popPaused, pushPaused;
@@ -41,26 +35,14 @@ public class PersistentQueue {
         return fallback;
     }
 
-    public void setPopPaused(boolean popPaused) {
-        lock.lock();
-        try {
-            this.popPaused = popPaused;
-            this.notFull.signalAll();
-            this.notEmpty.signalAll();
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void setPopPaused(boolean popPaused) {
+        this.popPaused = popPaused;
+        notifyAll();
     }
 
-    public void setPushPaused(boolean pushPaused) {
-        lock.lock();
-        try {
-            this.pushPaused = pushPaused;
-            this.notFull.signalAll();
-            this.notEmpty.signalAll();
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void setPushPaused(boolean pushPaused) {
+        this.pushPaused = pushPaused;
+        notifyAll();
     }
 
     public void reopen() throws IOException {
@@ -94,95 +76,52 @@ public class PersistentQueue {
         fallback.flush();
     }
 
-    public boolean blockingPop(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
-        lock.lockInterruptibly();
-        try {
-            long target = System.nanoTime() + unit.toNanos(amount);
-            while (!notifyingPop(buffer)) {
-                long wait = Math.min(MAX_WAIT, target - System.nanoTime());
-                if (wait <= 0) return false;
-                notEmpty.awaitNanos(wait);
-            }
-        } finally {
-            lock.unlock();
+    public synchronized boolean blockingPop(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
+        long target = System.nanoTime() + unit.toNanos(amount);
+        while (!pop(buffer)) {
+            long wait = Math.min(MAX_WAIT, target - System.nanoTime());
+            if (wait <= 0) return false;
+            TimeUnit.NANOSECONDS.timedWait(this, wait);
         }
         return true;
     }
 
-    public void blockingPop(Buffer buffer) throws InterruptedException {
-        lock.lockInterruptibly();
-        try {
-            while (!notifyingPop(buffer))
-                notEmpty.awaitNanos(MAX_WAIT);
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void blockingPop(Buffer buffer) throws InterruptedException {
+        while (!pop(buffer))
+            TimeUnit.NANOSECONDS.timedWait(this, MAX_WAIT);
     }
 
-    public boolean blockingPush(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
-        lock.lockInterruptibly();
-        try {
-            long target = System.nanoTime() + unit.toNanos(amount);
-            while (!notifyingPush(buffer)) {
-                long wait = Math.min(MAX_WAIT, target - System.nanoTime());
-                if (wait <= 0) return false;
-
-                notFull.awaitNanos(wait);
-            }
-        } finally {
-            lock.unlock();
+    public synchronized boolean blockingPush(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
+        long target = System.nanoTime() + unit.toNanos(amount);
+        while (!push(buffer)) {
+            long wait = Math.min(MAX_WAIT, target - System.nanoTime());
+            if (wait <= 0) return false;
+            TimeUnit.NANOSECONDS.timedWait(this, wait);
         }
         return true;
     }
 
-    public void blockingPush(Buffer buffer) throws InterruptedException {
-        lock.lockInterruptibly();
-        try {
-            while (!notifyingPush(buffer))
-                notFull.awaitNanos(MAX_WAIT);
-        } finally {
-            lock.unlock();
-        }
+    public synchronized void blockingPush(Buffer buffer) throws InterruptedException {
+        while (!push(buffer))
+            TimeUnit.NANOSECONDS.timedWait(this, MAX_WAIT);
     }
 
-    public boolean pop(Buffer buffer) {
-        lock.lock();
-        boolean answer;
-        try {
-            answer = notifyingPop(buffer);
-        } finally {
-            lock.unlock();
-        }
-        return answer;
-    }
-
-    public boolean push(Buffer buffer) {
-        lock.lock();
-        boolean answer;
-        try {
-            answer = notifyingPush(buffer);
-        } finally {
-            lock.unlock();
-        }
-        return answer;
-    }
-
-    private boolean notifyingPop(Buffer buffer) {
+    public synchronized boolean pop(Buffer buffer) {
         if (popPaused) return false;
         if (!innerPop(buffer))
             return false;
         else {
-            notFull.signalAll();
+            notifyAll();
             return true;
         }
     }
 
-    private boolean notifyingPush(Buffer buffer) {
+    public synchronized boolean push(Buffer buffer) {
         if (pushPaused) return false;
         if (!innerPush(buffer))
             return false;
         else {
-            notEmpty.signal();
+            notifyAll();
             return true;
         }
     }
