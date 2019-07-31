@@ -11,31 +11,58 @@ public class DsonBinaryWriteTest {
     @Test
     public void testWriteLatin1() throws IOException {
         Buffer buf = new Buffer();
-        DsonBinaryWrite.writeLatin1(buf.write(), "ação");
+        Buffer.OutStream write = buf.write();
+        DsonBinaryWrite.writeLatin1(write, "ação");
+        DsonBinaryWrite.writeLatin1(write, "lâmpada");
+
         Latin1View view = new Latin1View();
-        DsonBinaryRead.readLatin1(buf.read(), view);
+
+        Buffer.InStream read = buf.read();
+        DsonBinaryRead.readLatin1(read, view);
         assertThat(view.toString()).isEqualTo("ação");
         assertThat(view.subSequence(1, 3).toString()).isEqualTo("çã");
+
+        DsonBinaryRead.readLatin1(read, view);
+        assertThat(view.toString()).isEqualTo("lâmpada");
+        assertThat(view.subSequence(1, 3).toString()).isEqualTo("âm");
     }
 
     @Test
     public void testWriteString() throws IOException {
         Buffer buf = new Buffer();
-        DsonBinaryWrite.writeUnicode(buf.write(), "ação");
+        Buffer.OutStream write = buf.write();
+        DsonBinaryWrite.writeUnicode(write, "ação");
+        DsonBinaryWrite.writeUnicode(write, "lâmpada");
+
         UnicodeView view = new UnicodeView();
-        DsonBinaryRead.readUnicode(buf.read(), view);
+
+        Buffer.InStream read = buf.read();
+        DsonBinaryRead.readUnicode(read, view);
         assertThat(view.toString()).isEqualTo("ação");
         assertThat(view.subSequence(1, 3).toString()).isEqualTo("çã");
+
+        DsonBinaryRead.readUnicode(read, view);
+        assertThat(view.toString()).isEqualTo("lâmpada");
+        assertThat(view.subSequence(1, 3).toString()).isEqualTo("âm");
     }
 
     @Test
     public void testWriteCrazyString() throws IOException {
         Buffer buf = new Buffer();
-        DsonBinaryWrite.writeUnicode(buf.write(), "(╯°□°)╯︵ ┻━┻");
+        Buffer.OutStream write = buf.write();
+        DsonBinaryWrite.writeUnicode(write, "(╯°□°)╯︵ ┻━┻");
+        DsonBinaryWrite.writeUnicode(write, "( ͡° ͜ʖ ͡°)");
+
         UnicodeView view = new UnicodeView();
-        DsonBinaryRead.readUnicode(buf.read(), view);
+
+        Buffer.InStream read = buf.read();
+        DsonBinaryRead.readUnicode(read, view);
         assertThat(view.toString()).isEqualTo("(╯°□°)╯︵ ┻━┻");
         assertThat(view.subSequence(1, 5).toString()).isEqualTo("╯°□°");
+
+        DsonBinaryRead.readUnicode(read, view);
+        assertThat(view.toString()).isEqualTo("( ͡° ͜ʖ ͡°)");
+        assertThat(view.subSequence(2, view.length()-1).toString()).isEqualTo("͡° ͜ʖ ͡°");
     }
 
     @Test

@@ -1,8 +1,10 @@
 package net.intelie.disq.dson;
 
-import jdk.internal.misc.SharedSecrets;
+import javax.print.DocFlavor;
+import java.util.Locale;
 
 public class Latin1View implements CharSequence {
+    private StringBuilder builder;
     private byte[] buf;
     private int start;
     private int length;
@@ -36,6 +38,12 @@ public class Latin1View implements CharSequence {
 
     @Override
     public String toString() {
-        return new StringBuilder(length).append(this).toString();
+        if (builder == null) {
+            builder = new StringBuilder(length);
+        } else {
+            builder.ensureCapacity(length);
+            builder.setLength(0);
+        }
+        return builder.append(this).toString();
     }
 }

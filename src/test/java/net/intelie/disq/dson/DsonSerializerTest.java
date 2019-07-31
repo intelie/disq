@@ -10,12 +10,19 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DsonSerializerTest {
     @Test
-    public void testStateless() {
-        DsonSerializer serializer = new DsonSerializer();
-        assertThat(serializer.create()).isSameAs(serializer);
+    public void testDeserializeInvalidStream() throws IOException {
+        Buffer buffer = new Buffer();
+        buffer.write().write(254);
+
+        DsonSerializer.Instance serializer = new DsonSerializer().create();
+        assertThatThrownBy(() -> serializer.deserialize(buffer))
+                .isInstanceOf(IOException.class)
+                .hasMessage("Illegal stream state: unknown type");
+
     }
 
     @Test
@@ -29,7 +36,7 @@ public class DsonSerializerTest {
                 Collections.singletonMap("fff", new Error("(╯°□°)╯︵ ┻━┻"))
         ));
 
-        DsonSerializer serializer = new DsonSerializer();
+        DsonSerializer.Instance serializer = new DsonSerializer().create();
         Buffer buffer = new Buffer();
 
         serializer.serialize(buffer, map);
