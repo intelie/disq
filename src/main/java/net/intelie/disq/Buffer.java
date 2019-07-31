@@ -6,12 +6,17 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class Buffer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Buffer.class);
 
     private final int maxCapacity;
+    private final OutStream out = new OutStream();
+    private final InStream in = new InStream();
     private byte[] buf;
     private int count;
 
@@ -97,7 +102,8 @@ public class Buffer {
     }
 
     public OutStream write(int start) {
-        return new OutStream(start);
+        out.position(start);
+        return out;
     }
 
     public InStream read() {
@@ -105,14 +111,24 @@ public class Buffer {
     }
 
     public InStream read(int start) {
-        return new InStream(start);
+        in.position(start);
+        return in;
     }
 
     public class OutStream extends OutputStream {
+        private final CharsetEncoder encoder = StandardCharsets.UTF_8.newEncoder();
         private int position;
 
-        public OutStream(int start) {
+        public void position(int start) {
             position = start;
+        }
+
+        public int position() {
+            return position;
+        }
+
+        public byte[] buf() {
+            return Buffer.this.buf();
         }
 
         @Override
@@ -127,25 +143,50 @@ public class Buffer {
             System.arraycopy(b, off, buf, position, len);
             position += len;
         }
+
+        @Override
+        public void close() {
+        }
     }
 
     public class InStream extends InputStream {
         private int marked = 0;
         private int position = 0;
 
-        public InStream(int start) {
+        public void position(int start) {
             position = marked = start;
         }
 
+        public int position() {
+            return position;
+        }
+
+        public int marked() {
+            return marked;
+        }
+
+        public byte[] buf() {
+            return Buffer.this.buf();
+        }
+
         @Override
-        public int read() throws IOException {
+        public void close() {
+        }
+
+        @Override
+        public int read(byte[] b) {
+            return read(b, 0, b.length);
+        }
+
+        @Override
+        public int read() {
             if (position + 1 > count)
                 return -1;
             return buf[position++] & 0xFF;
         }
 
         @Override
-        public int read(byte[] b, int off, int len) throws IOException {
+        public int read(byte[] b, int off, int len) {
             if (position >= count)
                 return -1;
             int toRead = Math.min(count - position, len);

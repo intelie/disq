@@ -28,7 +28,7 @@ public class ObjectPoolTest {
         int last = counter.get();
         assertThat(last).isLessThan(1100);
 
-        System.gc();
+        forceCollectSoftReferences();
 
         try (ObjectPool<Integer>.Ref ref = pool.acquire()) {
             assertThat(ref.obj()).isEqualTo(last + 1);
@@ -54,12 +54,21 @@ public class ObjectPoolTest {
         int last = counter.get();
         assertThat(last).isLessThan(1100);
 
-        System.gc();
+        forceCollectSoftReferences();
 
         try (ObjectPool<Integer>.Ref ref = pool.acquire()) {
             assertThat(ref.obj()).isEqualTo(1001);
         }
 
+    }
+
+    private void forceCollectSoftReferences() {
+        try {
+            int max = (int) Math.min(Runtime.getRuntime().maxMemory() / 8, Integer.MAX_VALUE);
+            long[] ignored = new long[max];
+        } catch (OutOfMemoryError e) {
+            // Ignore
+        }
     }
 
     Thread startThread(ObjectPool<Integer> pool) {

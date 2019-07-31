@@ -269,7 +269,7 @@ public class DisqTest {
         }
     }
 
-    private static class StringSerializer implements Serializer<String> {
+    private static class StringSerializer implements Serializer<String>, SerializerFactory<String> {
         @Override
         public void serialize(Buffer buffer, String obj) throws IOException {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(buffer.write()));
@@ -280,6 +280,11 @@ public class DisqTest {
         @Override
         public String deserialize(Buffer buffer) throws IOException {
             return CharStreams.toString(new InputStreamReader(buffer.read()));
+        }
+
+        @Override
+        public Serializer<String> create() {
+            return this;
         }
     }
 }

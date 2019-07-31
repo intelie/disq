@@ -1,5 +1,6 @@
 package net.intelie.disq;
 
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -58,11 +59,11 @@ public class ObjectPool<T> {
     }
 
     public class Ref implements AutoCloseable {
-        private final WeakReference<T> ref;
+        private final SoftReference<T> ref;
         private T obj;
 
         private Ref() {
-            this.ref = new WeakReference<>(this.obj = factory.apply(this));
+            this.ref = new SoftReference<>(this.obj = factory.apply(this));
         }
 
         private boolean materialize() {

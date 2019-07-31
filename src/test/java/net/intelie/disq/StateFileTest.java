@@ -29,6 +29,22 @@ public class StateFileTest {
     }
 
     @Test
+    public void testNumberOfFilesOtherWayAround() {
+        for (int i = 0; i < StateFile.MAX_FILE_ID - 50; i++)
+            state.advanceWriteFile();
+
+        for (int i = 0; i < StateFile.MAX_FILE_ID - 70; i++)
+            state.advanceReadFile(0);
+
+        assertThat(state.getNumberOfFiles()).isEqualTo(20);
+
+        for (int i = 0; i < 100; i++)
+            state.advanceWriteFile();
+
+        assertThat(state.getNumberOfFiles()).isEqualTo(120);
+    }
+
+    @Test
     public void willSave() throws Exception {
         exampleData(state);
 

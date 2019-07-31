@@ -120,21 +120,18 @@ public class Disq<T> implements AutoCloseable {
 
         @Override
         public void run() {
-            try (SerializerPool<T>.Slot slot = serializerPool.acquire()) {
-                while (open.get()) {
-                    try {
-                        long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
-                        T obj = blockingPop(slot, nextFlushNanos);
+            while (open.get()) {
+                try (SerializerPool<T>.Slot slot = serializerPool.acquire()) {
+                    long nextFlushNanos = nextFlush != null ? nextFlush.get() : 0;
+                    T obj = blockingPop(slot, nextFlushNanos);
 
-                        process(obj);
+                    process(obj);
 
-                        maybeFlush(nextFlushNanos);
-                    } catch (Throwable e) {
-                        LOGGER.info("Exception processing element", e);
-                    }
+                    maybeFlush(nextFlushNanos);
+                } catch (Throwable e) {
+                    LOGGER.info("Exception processing element", e);
                 }
             }
-
         }
 
         private void process(T obj) throws Exception {

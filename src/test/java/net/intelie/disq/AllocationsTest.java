@@ -17,7 +17,7 @@ public class AllocationsTest {
     @Test
     public void testAllocationSimpleMap() throws InterruptedException {
         int count1 = 20000;
-        int count2 = 1000;
+        int count2 = 10000;
         MyFactory factory = new MyFactory();
 
         Disq<Object> disq = Disq.builder(x -> {
@@ -45,8 +45,7 @@ public class AllocationsTest {
                 while (disq.count() > 0)
                     Thread.sleep(10);
 
-                System.out.println("OK");
-
+                System.out.println("START " + Thread.currentThread().getName());
                 long start = factory.totalAllocations();
                 disq.pause();
                 for (int i = 0; i < count2; i++) {
@@ -73,7 +72,6 @@ public class AllocationsTest {
 
         assertThat(result.get() / (double) count2).isLessThan(1);
         System.out.println(result.get() / (double) count2);
-
     }
 
 
@@ -85,7 +83,7 @@ public class AllocationsTest {
 
         @Override
         public Object deserialize(Buffer buffer) throws IOException {
-            return "";
+            return null;
         }
     }
 

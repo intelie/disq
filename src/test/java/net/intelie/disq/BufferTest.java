@@ -26,6 +26,14 @@ public class BufferTest {
     }
 
     @Test
+    public void canReadBytes() {
+        Buffer buffer = new Buffer("0123456789".getBytes(StandardCharsets.UTF_8));
+        byte[] bytes = new byte[4];
+        assertThat(buffer.read(3).read(bytes)).isEqualTo(4);
+        assertThat(bytes).containsExactly('3', '4', '5', '6');
+    }
+
+    @Test
     public void testWriteBigString() throws Exception {
         Buffer buffer = new Buffer();
 
@@ -141,6 +149,34 @@ public class BufferTest {
         read.reset();
         assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
                 "0123456789012345678901234567890123456789");
+    }
+
+    @Test
+    public void testMarkInMiddle() throws Exception {
+        Buffer buffer = new Buffer();
+
+        PrintStream stream = new PrintStream(buffer.write());
+        stream.print("0123456789012345678901234567890123456789");
+
+        Buffer.InStream read = buffer.read();
+        for (int i = 0; i < 7; i++) {
+            read.read();
+        }
+        read.mark(0);
+        assertThat(read.marked()).isEqualTo(7);
+        assertThat(read.position()).isEqualTo(7);
+
+        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+                "789012345678901234567890123456789");
+        assertThat(read.marked()).isEqualTo(7);
+        assertThat(read.position()).isEqualTo(40);
+
+        read.reset();
+        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+                "789012345678901234567890123456789");
+        read.reset();
+        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+                "789012345678901234567890123456789");
     }
 
     @Test

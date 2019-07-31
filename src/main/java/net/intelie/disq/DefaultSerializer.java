@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-public class DefaultSerializer<T> implements Serializer<T> {
+public class DefaultSerializer<T> implements Serializer<T>, SerializerFactory<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultSerializer.class);
 
     @Override
@@ -27,5 +27,10 @@ public class DefaultSerializer<T> implements Serializer<T> {
                 throw new IOException(e);
             }
         }
+    }
+
+    @Override
+    public Serializer<T> create() {
+        return this;
     }
 }
