@@ -4,11 +4,12 @@ import net.intelie.disq.Buffer;
 import net.intelie.disq.Serializer;
 import net.intelie.disq.SerializerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class DsonSerializer implements SerializerFactory<Object> {
     @Override
@@ -16,30 +17,32 @@ public class DsonSerializer implements SerializerFactory<Object> {
         return new Instance();
     }
 
-    public class Instance implements Serializer<Object> {
-        private UnicodeView unicodeView = new UnicodeView();
-        private Latin1View latin1View = new Latin1View();
+    public static class Instance implements Serializer<Object> {
+        private final UnicodeView unicodeView = new UnicodeView();
+        private final Latin1View latin1View = new Latin1View();
+        private final BiConsumer<Object, Object> SERIALIZE_DOUBLE = this::serializeDouble;
+        private final Consumer<Object> SERIALIZE_SINGLE = this::serializeSingle;
+        private Buffer.OutStream stream;
 
         @Override
-        public void serialize(Buffer buffer, Object obj) throws IOException {
-            try (Buffer.OutStream stream = buffer.write()) {
+        public void serialize(Buffer buffer, Object obj) {
+            try (Buffer.OutStream stream = this.stream = buffer.write()) {
                 serialize(stream, obj);
+            } finally {
+                //doing that his way so I can use Map.forEach without allocations
+                this.stream = null;
             }
         }
 
-        public void serialize(Buffer.OutStream stream, Object obj) throws IOException {
+        public void serialize(Buffer.OutStream stream, Object obj) {
             if (obj instanceof Map<?, ?>) {
                 DsonBinaryWrite.writeType(stream, DsonType.OBJECT);
                 DsonBinaryWrite.writeInt32(stream, ((Map<?, ?>) obj).size());
-                for (Map.Entry<?, ?> entry : ((Map<?, ?>) obj).entrySet()) {
-                    serialize(stream, entry.getKey());
-                    serialize(stream, entry.getValue());
-                }
+                ((Map<?, ?>) obj).forEach(SERIALIZE_DOUBLE);
             } else if (obj instanceof Collection<?>) {
                 DsonBinaryWrite.writeType(stream, DsonType.ARRAY);
                 DsonBinaryWrite.writeInt32(stream, ((Collection<?>) obj).size());
-                for (Object child : (Iterable<?>) obj)
-                    serialize(stream, child);
+                ((Collection<?>) obj).forEach(SERIALIZE_SINGLE);
             } else if (obj instanceof CharSequence) {
                 CharSequence str = (CharSequence) obj;
                 boolean latin1 = true;
@@ -66,15 +69,24 @@ public class DsonSerializer implements SerializerFactory<Object> {
             }
         }
 
+        private void serializeSingle(Object v) {
+            serialize(stream, v);
+        }
+
+        private void serializeDouble(Object k, Object v) {
+            serialize(stream, k);
+            serialize(stream, v);
+        }
+
         @Override
-        public Object deserialize(Buffer buffer) throws IOException {
+        public Object deserialize(Buffer buffer) {
             try (Buffer.InStream stream = buffer.read()) {
                 return deserialize(stream);
             }
 
         }
 
-        private Object deserialize(Buffer.InStream stream) throws IOException {
+        private Object deserialize(Buffer.InStream stream) {
             switch (DsonBinaryRead.readType(stream)) {
                 case OBJECT:
                     int objectSize = DsonBinaryRead.readInt32(stream);
@@ -104,7 +116,7 @@ public class DsonSerializer implements SerializerFactory<Object> {
                 case NULL:
                     return null;
                 default:
-                    throw new IOException("Illegal stream state: unknown type");
+                    throw new IllegalStateException("unknown DSON type");
             }
         }
 

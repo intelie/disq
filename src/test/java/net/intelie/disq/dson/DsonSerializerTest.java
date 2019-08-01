@@ -20,8 +20,8 @@ public class DsonSerializerTest {
 
         DsonSerializer.Instance serializer = new DsonSerializer().create();
         assertThatThrownBy(() -> serializer.deserialize(buffer))
-                .isInstanceOf(IOException.class)
-                .hasMessage("Illegal stream state: unknown type");
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("unknown DSON type");
 
     }
 

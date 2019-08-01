@@ -254,7 +254,7 @@ public class DisqTest {
                 slot.push(queue, s);
             }
         })
-                .isInstanceOf(IOException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Buffer overflowed")
                 .hasMessageContaining("1001/1000");
     }

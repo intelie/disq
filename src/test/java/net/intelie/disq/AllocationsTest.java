@@ -1,14 +1,16 @@
 package net.intelie.disq;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import net.intelie.disq.dson.DsonBinaryRead;
+import net.intelie.disq.dson.DsonSerializer;
+import net.intelie.disq.dson.Latin1View;
+import net.intelie.disq.dson.UnicodeView;
 import net.intelie.introspective.ThreadResources;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Semaphore;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Java6Assertions.assertThat;
@@ -16,82 +18,123 @@ import static org.assertj.core.api.Java6Assertions.assertThat;
 public class AllocationsTest {
     @Test
     public void testAllocationSimpleMap() throws InterruptedException {
-        int count1 = 20000;
-        int count2 = 10000;
-        MyFactory factory = new MyFactory();
+        int warmupCount = 10000;
+        int realCount = 10000;
+        MyFactory readerThreads = new MyFactory();
+        MyFactory writerThreads = new MyFactory();
 
-        Disq<Object> disq = Disq.builder(x -> {
+        AtomicLong totalCount = new AtomicLong();
+        AtomicLong readerBytes = new AtomicLong();
+        AtomicLong writerBytes = new AtomicLong();
+
+        try (Disq<Object> disq = Disq.builder(x -> {
         })
-                .setThreadFactory(factory)
-                .setSerializer(NoopSerializer::new)
+                .setThreadFactory(readerThreads)
+                .setSerializer(() -> new NoopSerializer(totalCount))
                 .setInitialBufferCapacity(1000)
                 .setFlushOnPop(false)
                 .setFlushOnPush(false)
-                .setThreadCount(1)
-                .build();
+                .setThreadCount(8)
+                .build()) {
 
-        Map map = ImmutableMap.of(
-                "abc", ImmutableMap.of("qwe", 72),
-                55, 42.0);
+            Map<Object, Object> map = new LinkedHashMap<>();
+            map.put("abc", Collections.singletonMap(Strings.repeat("a", 2000), 72));
+            map.put(55, 42.0);
 
-        AtomicLong result = new AtomicLong();
-        Thread thread = factory.newThread(() -> {
-            try {
-                disq.pause();
-                for (int i = 0; i < count1; i++) {
-                    disq.submit(map);
+            Thread writer = writerThreads.newThread(() -> {
+                try {
+                    sendSome(warmupCount, disq, map);
+
+                    long readerStart = readerThreads.totalAllocations();
+                    long writerStart = writerThreads.totalAllocations();
+
+                    sendSome(realCount, disq, map);
+
+                    readerBytes.set(readerThreads.totalAllocations() - readerStart);
+                    writerBytes.set(writerThreads.totalAllocations() - writerStart);
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
                 }
-                disq.resume();
-                while (disq.count() > 0)
-                    Thread.sleep(10);
 
-                System.out.println("START " + Thread.currentThread().getName());
-                long start = factory.totalAllocations();
-                disq.pause();
-                for (int i = 0; i < count2; i++) {
-                    disq.submit(map);
-                }
-                disq.resume();
-                while (disq.count() > 0)
-                    Thread.sleep(10);
+            });
+            writer.start();
+            writer.join();
 
-                result.set(factory.totalAllocations() - start);
-                List<Thread> threads = factory.threads;
-                assertThat(factory.timesCount).isEqualTo(2);
-                for (int i = 0; i < threads.size(); i++) {
-                    System.out.println(threads.get(i).getName() + " " + (factory.times[1][i] - factory.times[0][i]));
-                }
-                System.out.println(((DiskRawQueue) disq.queue().rawQueue()).flushCount());
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
+            System.out.println("BUF. FLUSHES: " + ((DiskRawQueue) disq.queue().rawQueue()).flushCount());
+            System.out.println("READER BYTES: " + readerBytes.get());
+            System.out.println("WRITER BYTES: " + writerBytes.get());
+            System.out.println("OBJECT COUNT: " + totalCount.get());
 
-        });
-        thread.start();
-        thread.join();
+            assertThat(readerBytes.get() / (double) realCount).isLessThan(1);
+            assertThat(writerBytes.get() / (double) realCount).isLessThan(1);
+            assertThat(totalCount.get()).isEqualTo((warmupCount + realCount) * 7);
+        }
+    }
 
-        assertThat(result.get() / (double) count2).isLessThan(1);
-        System.out.println(result.get() / (double) count2);
+    private void sendSome(int count, Disq<Object> disq, Object map) throws IOException, InterruptedException {
+        disq.pause();
+        for (int i = 0; i < count; i++)
+            disq.submit(map);
+        disq.resume();
+
+        while (disq.count() > 0)
+            Thread.sleep(10);
     }
 
 
     private static class NoopSerializer implements Serializer<Object> {
+        private final DsonSerializer.Instance instance = new DsonSerializer.Instance();
+        private final UnicodeView unicodeView = new UnicodeView();
+        private final Latin1View latin1View = new Latin1View();
+        private final AtomicLong totalCount;
+
+        public NoopSerializer(AtomicLong totalCount) {
+            this.totalCount = totalCount;
+        }
+
         @Override
         public void serialize(Buffer buffer, Object obj) throws IOException {
-
+            instance.serialize(buffer, obj);
         }
 
         @Override
         public Object deserialize(Buffer buffer) throws IOException {
-            return null;
+            try (Buffer.InStream stream = buffer.read()) {
+                int count = 0;
+                for (int remaining = 1; remaining > 0; remaining--, count++) {
+                    switch (DsonBinaryRead.readType(stream)) {
+                        case OBJECT:
+                            remaining += 2 * DsonBinaryRead.readInt32(stream);
+                            break;
+                        case ARRAY:
+                            remaining += DsonBinaryRead.readInt32(stream);
+                            break;
+                        case DOUBLE:
+                            DsonBinaryRead.readNumber(stream);
+                            break;
+                        case STRING:
+                            DsonBinaryRead.readUnicode(stream, unicodeView);
+                            break;
+                        case STRING_LATIN1:
+                            DsonBinaryRead.readLatin1(stream, latin1View);
+                            break;
+                        case BOOLEAN:
+                            DsonBinaryRead.readBoolean(stream);
+                            break;
+                        case NULL:
+                            return null;
+                        default:
+                            throw new IOException("Illegal stream state: unknown type");
+                    }
+                }
+                totalCount.addAndGet(count);
+                return null;
+            }
         }
     }
 
     private class MyFactory implements java.util.concurrent.ThreadFactory {
         private final List<Thread> threads = new ArrayList<>();
-        private long[][] times = new long[100][100];
-        private int timesCount = 0;
-
 
         @Override
         public Thread newThread(Runnable r) {
@@ -100,17 +143,10 @@ public class AllocationsTest {
             return thread;
         }
 
-        public void join() throws InterruptedException {
-            for (Thread thread : threads) {
-                thread.join();
-            }
-        }
-
         public long totalAllocations() {
             long sum = 0;
             for (int i = 0; i < threads.size(); i++)
-                sum += times[timesCount][i] = ThreadResources.allocatedBytes(threads.get(i));
-            timesCount++;
+                sum += ThreadResources.allocatedBytes(threads.get(i));
             return sum;
         }
     }

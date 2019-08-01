@@ -81,7 +81,7 @@ public class LenientRawQueueTest {
 
         for (int i = 0; i < 32; i++)
             assertThatThrownBy(() -> pop(queue))
-                    .isInstanceOf(IOException.class)
+                    .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Buffer overflowed");
 
         for (int i = 0; i < 4; i++)
@@ -107,7 +107,7 @@ public class LenientRawQueueTest {
 
         for (int i = 0; i < 32; i++)
             assertThatThrownBy(() -> pop(queue))
-                    .isInstanceOf(IOException.class)
+                    .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Buffer overflowed");
 
         push(queue, s);
@@ -139,7 +139,7 @@ public class LenientRawQueueTest {
 
         for (int i = 0; i < 32; i++)
             assertThatThrownBy(() -> pop(queue))
-                    .isInstanceOf(IOException.class)
+                    .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Buffer overflowed");
 
 

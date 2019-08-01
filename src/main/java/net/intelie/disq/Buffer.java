@@ -62,28 +62,28 @@ public class Buffer {
         return Arrays.copyOf(buf, count);
     }
 
-    public void setCountAtLeast(int newCount, boolean preserve) throws IOException {
+    public void setCountAtLeast(int newCount, boolean preserve) {
         if (newCount > count) {
             setCount(newCount, preserve);
         }
     }
 
-    public void setCount(int newCount, boolean preserve) throws IOException {
+    public void setCount(int newCount, boolean preserve) {
         ensureCapacity(newCount, preserve);
         count = newCount;
     }
 
-    public void ensureCapacity(int capacity) throws IOException {
+    public void ensureCapacity(int capacity) {
         ensureCapacity(capacity, false);
     }
 
-    public void ensureCapacity(int capacity, boolean preserve) throws IOException {
+    public void ensureCapacity(int capacity, boolean preserve) {
         if (capacity <= buf.length) return;
         int newCapacity = findBestNewCapacity(capacity);
 
         if (capacity > newCapacity) {
             LOGGER.info("Buffer overflowed. Len={}, Max={}", capacity, maxCapacity);
-            throw new IOException("Buffer overflowed: " + capacity + "/" + maxCapacity + " bytes");
+            throw new IllegalStateException("Buffer overflowed: " + capacity + "/" + maxCapacity + " bytes");
         }
 
         if (preserve) buf = Arrays.copyOf(buf, newCapacity);
@@ -116,7 +116,6 @@ public class Buffer {
     }
 
     public class OutStream extends OutputStream {
-        private final CharsetEncoder encoder = StandardCharsets.UTF_8.newEncoder();
         private int position;
 
         public void position(int start) {
@@ -132,13 +131,13 @@ public class Buffer {
         }
 
         @Override
-        public void write(int b) throws IOException {
+        public void write(int b) {
             setCountAtLeast(position + 1, true);
             buf[position++] = (byte) b;
         }
 
         @Override
-        public void write(byte[] b, int off, int len) throws IOException {
+        public void write(byte[] b, int off, int len) {
             setCountAtLeast(position + len, true);
             System.arraycopy(b, off, buf, position, len);
             position += len;
@@ -196,14 +195,14 @@ public class Buffer {
         }
 
         @Override
-        public long skip(long n) throws IOException {
+        public long skip(long n) {
             long toSkip = Math.min(count - position, n);
             position += toSkip;
             return toSkip;
         }
 
         @Override
-        public int available() throws IOException {
+        public int available() {
             return count - position;
         }
 
@@ -213,7 +212,7 @@ public class Buffer {
         }
 
         @Override
-        public synchronized void reset() throws IOException {
+        public synchronized void reset() {
             position = marked;
         }
     }

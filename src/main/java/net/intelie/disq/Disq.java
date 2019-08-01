@@ -90,7 +90,7 @@ public class Disq<T> implements AutoCloseable {
     }
 
     @Override
-    public void close() throws IOException, InterruptedException {
+    public void close() throws InterruptedException {
         if (!open.getAndSet(false))
             return;
         queue.setPushPaused(true);

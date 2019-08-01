@@ -12,6 +12,39 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class BufferTest {
     @Test
+    public void testWriter() throws IOException {
+        Buffer buffer = new Buffer();
+        Buffer.OutStream writer = buffer.write();
+
+        assertThat(writer.buf()).isSameAs(buffer.buf());
+        assertThat(writer.position()).isEqualTo(0);
+        writer.write(new byte[]{1, 2, 3});
+
+        assertThat(writer.position()).isEqualTo(3);
+
+        Buffer.OutStream writer2 = buffer.write(1);
+        assertThat(writer2).isSameAs(writer);
+        assertThat(writer2.position()).isEqualTo(1);
+    }
+
+    @Test
+    public void testReader() throws IOException {
+        Buffer buffer = new Buffer();
+        buffer.write().write(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0});
+
+        Buffer.InStream reader = buffer.read();
+        assertThat(reader.buf()).isSameAs(buffer.buf());
+        assertThat(reader.position()).isEqualTo(0);
+        reader.read(new byte[3]);
+
+        assertThat(reader.position()).isEqualTo(3);
+
+        Buffer.InStream writer2 = buffer.read(1);
+        assertThat(writer2).isSameAs(reader);
+        assertThat(writer2.position()).isEqualTo(1);
+    }
+
+    @Test
     public void testEnsureCapacity() throws Exception {
         Buffer buffer = new Buffer(13, 1 << 25);
         assertThat(buffer.currentCapacity()).isEqualTo(13);
@@ -56,7 +89,7 @@ public class BufferTest {
         Buffer buffer = new Buffer(100, 1000);
 
         assertThatThrownBy(() -> buffer.ensureCapacity(1001))
-                .isInstanceOf(IOException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("1000");
     }
 
@@ -82,7 +115,7 @@ public class BufferTest {
         assertThat(buffer.currentCapacity()).isEqualTo(300);
 
         assertThatThrownBy(() -> stream.write('a'))
-                .isInstanceOf(IOException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Buffer overflowed")
                 .hasMessageContaining("301/300 bytes");
     }
