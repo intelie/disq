@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
@@ -19,12 +18,12 @@ public class Disq<T> implements AutoCloseable {
     private final long autoFlushNanos;
     private final SerializerPool<T> serializerPool;
     private final List<Object> locks;
-    private final PersistentQueue queue;
+    private final InternalQueue queue;
     private final AtomicLong nextFlush;
     private final AtomicBoolean open;
 
     public Disq(ThreadFactory factory, int threads, long autoFlushMs, SerializerPool<T> serializerPool,
-                Processor<T> processor, PersistentQueue queue) {
+                Processor<T> processor, InternalQueue queue) {
         this.threads = new ArrayList<>(threads);
         this.autoFlushNanos = autoFlushMs * 1_000_000;
         this.serializerPool = serializerPool;
@@ -51,7 +50,7 @@ public class Disq<T> implements AutoCloseable {
         return new DisqBuilder<T>(processor);
     }
 
-    public PersistentQueue queue() {
+    public InternalQueue queue() {
         return queue;
     }
 
@@ -108,11 +107,11 @@ public class Disq<T> implements AutoCloseable {
     }
 
     private class WorkerRunnable implements Runnable {
-        private final PersistentQueue queue;
+        private final InternalQueue queue;
         private final Object shutdownLock;
         private final Processor<T> processor;
 
-        public WorkerRunnable(PersistentQueue queue, Object shutdownLock, Processor<T> processor) {
+        public WorkerRunnable(InternalQueue queue, Object shutdownLock, Processor<T> processor) {
             this.queue = queue;
             this.shutdownLock = shutdownLock;
             this.processor = processor;

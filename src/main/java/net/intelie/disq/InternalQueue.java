@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class PersistentQueue {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PersistentQueue.class);
+public class InternalQueue {
+    private static final Logger LOGGER = LoggerFactory.getLogger(InternalQueue.class);
 
     private static final long MAX_WAIT = TimeUnit.SECONDS.toNanos(10);
 
@@ -17,11 +17,11 @@ public class PersistentQueue {
 
     private boolean popPaused, pushPaused;
 
-    public PersistentQueue(RawQueue queue) {
+    public InternalQueue(RawQueue queue) {
         this(queue, 0);
     }
 
-    public PersistentQueue(RawQueue queue, int fallbackBufferCapacity) {
+    public InternalQueue(RawQueue queue, int fallbackBufferCapacity) {
         this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
         this.original = queue;
         this.queue = new LenientRawQueue(queue);

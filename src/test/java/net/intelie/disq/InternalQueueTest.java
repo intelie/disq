@@ -13,13 +13,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-public class PersistentQueueTest {
+public class InternalQueueTest {
     @Rule
     public TemporaryFolder temp = new TemporaryFolder();
 
@@ -30,7 +28,7 @@ public class PersistentQueueTest {
 
         Buffer buffer = new Buffer("test".getBytes(StandardCharsets.UTF_8));
 
-        PersistentQueue queue = new PersistentQueue(disk);
+        InternalQueue queue = new InternalQueue(disk);
         Buffer buffer2 = new Buffer();
 
 
@@ -72,7 +70,7 @@ public class PersistentQueueTest {
     @Test
     public void testPushAndCloseThenOpenAndPop() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue queue = new PersistentQueue(bq);
+        InternalQueue queue = new InternalQueue(bq);
         Adapter adapter = new Adapter(queue);
 
         assertThat(queue.rawQueue()).isEqualTo(bq);
@@ -105,7 +103,7 @@ public class PersistentQueueTest {
     @Test
     public void testWhenTheDirectoryIsReadOnly() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue queue = new PersistentQueue(bq, 1000);
+        InternalQueue queue = new InternalQueue(bq, 1000);
         Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 10; i++)
@@ -144,7 +142,7 @@ public class PersistentQueueTest {
     @Test//(timeout = 3000)
     public void testBlockingWrite() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
 
         String s = Strings.repeat("a", 508);
 
@@ -164,7 +162,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
         Adapter adapter = new Adapter(queue);
 
         String s = Strings.repeat("a", 506);
@@ -181,7 +179,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
 
         String s = Strings.repeat("a", 508);
 
@@ -201,7 +199,7 @@ public class PersistentQueueTest {
     @Test(timeout = 3000)
     public void testBlockingBoth() throws Throwable {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
         queue.setPopPaused(true);
         queue.setPushPaused(true);
 
@@ -234,7 +232,7 @@ public class PersistentQueueTest {
     @Test
     public void canPushBigCompressing() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
         Adapter adapter = new Adapter(queue);
 
         adapter.push(Strings.repeat("a", 10000));
@@ -246,7 +244,7 @@ public class PersistentQueueTest {
     @Test
     public void canClear() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
         Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 20; i++)
@@ -259,7 +257,7 @@ public class PersistentQueueTest {
     @Test
     public void canAvoidFlush() throws Exception {
         DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
-        PersistentQueue queue = new PersistentQueue(bq, 1 << 16);
+        InternalQueue queue = new InternalQueue(bq, 1 << 16);
         Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 20; i++)
@@ -296,7 +294,7 @@ public class PersistentQueueTest {
         private final Adapter queue;
         private final String s;
 
-        public WriterThread(PersistentQueue queue, String s) {
+        public WriterThread(InternalQueue queue, String s) {
             this.queue = new Adapter(queue);
             this.s = s;
             this.setName("WRITER");
@@ -314,7 +312,7 @@ public class PersistentQueueTest {
         private final Adapter queue;
         private final String s;
 
-        public ReaderThread(PersistentQueue queue, String s) {
+        public ReaderThread(InternalQueue queue, String s) {
             this.queue = new Adapter(queue);
             this.s = s;
             this.setName("READER");
@@ -333,9 +331,9 @@ public class PersistentQueueTest {
         private final SerializerPool<String> pool = new SerializerPool<>(
                 () -> new GsonSerializer<>(String.class),
                 1000, -1);
-        private final PersistentQueue queue;
+        private final InternalQueue queue;
 
-        private Adapter(PersistentQueue queue) {
+        private Adapter(InternalQueue queue) {
             this.queue = queue;
         }
 

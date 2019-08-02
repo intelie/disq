@@ -38,40 +38,40 @@ public class SerializerPool<T> {
             this.ref.close();
         }
 
-        public boolean push(PersistentQueue queue, T obj) throws IOException {
+        public boolean push(InternalQueue queue, T obj) throws IOException {
             serializer.serialize(buffer, obj);
             return queue.push(buffer);
         }
 
-        public T pop(PersistentQueue queue) throws IOException {
+        public T pop(InternalQueue queue) throws IOException {
             if (!queue.pop(buffer))
                 return null;
             return serializer.deserialize(buffer);
         }
 
-        public T peek(PersistentQueue queue) throws IOException {
+        public T peek(InternalQueue queue) throws IOException {
             if (!queue.peek(buffer))
                 return null;
             return serializer.deserialize(buffer);
         }
 
-        public T blockingPop(PersistentQueue queue) throws InterruptedException, IOException {
+        public T blockingPop(InternalQueue queue) throws InterruptedException, IOException {
             queue.blockingPop(buffer);
             return serializer.deserialize(buffer);
         }
 
-        public T blockingPop(PersistentQueue queue, long amount, TimeUnit unit) throws InterruptedException, IOException {
+        public T blockingPop(InternalQueue queue, long amount, TimeUnit unit) throws InterruptedException, IOException {
             if (!queue.blockingPop(buffer, amount, unit))
                 return null;
             return serializer.deserialize(buffer);
         }
 
-        public void blockingPush(PersistentQueue queue, T obj) throws InterruptedException, IOException {
+        public void blockingPush(InternalQueue queue, T obj) throws InterruptedException, IOException {
             serializer.serialize(buffer, obj);
             queue.blockingPush(buffer);
         }
 
-        public boolean blockingPush(PersistentQueue queue, T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
+        public boolean blockingPush(InternalQueue queue, T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
             serializer.serialize(buffer, obj);
             return queue.blockingPush(buffer, amount, unit);
         }

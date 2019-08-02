@@ -242,7 +242,7 @@ public class DisqTest {
                 .setMaxBufferCapacity(1000);
 
         SerializerPool<String> pool = builder.buildSerializerPool();
-        PersistentQueue queue = builder.buildPersistentQueue();
+        InternalQueue queue = builder.buildPersistentQueue();
 
 
         try (SerializerPool<String>.Slot slot = pool.acquire()) {
