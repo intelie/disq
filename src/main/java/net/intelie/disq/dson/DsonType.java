@@ -12,7 +12,7 @@ public enum DsonType {
     STRING(0x06),
     STRING_LATIN1(0x07);
 
-    private static final DsonType[] LOOKUP_TABLE = new DsonType[0xFF];
+    private static final DsonType[] LOOKUP_TABLE = new DsonType[256];
     private final int value;
 
     static {

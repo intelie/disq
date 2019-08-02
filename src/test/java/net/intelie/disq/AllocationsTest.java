@@ -65,6 +65,7 @@ public class AllocationsTest {
             System.out.println("WRITER BYTES: " + writerBytes.get());
             System.out.println("OBJECT COUNT: " + totalCount.get());
 
+            assertThat(((DiskRawQueue) disq.queue().rawQueue()).flushCount()).isLessThan(10);
             assertThat(readerBytes.get() / (double) realCount).isLessThan(1);
             assertThat(writerBytes.get() / (double) realCount).isLessThan(1);
             assertThat(totalCount.get()).isEqualTo((warmupCount + realCount) * 7);

@@ -172,6 +172,7 @@ public class BufferTest {
         stream.print("0123456789012345678901234567890123456789");
 
         InputStream read = buffer.read();
+        assertThat(read.markSupported()).isTrue();
         read.mark(0);
 
         assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(

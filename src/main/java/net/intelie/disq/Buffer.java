@@ -3,12 +3,8 @@ package net.intelie.disq;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class Buffer {
@@ -131,16 +127,35 @@ public class Buffer {
         }
 
         @Override
-        public void write(int b) {
-            setCountAtLeast(position + 1, true);
-            buf[position++] = (byte) b;
+        public void write(byte[] data) {
+            writeAt(position, data, 0, data.length);
+            position += data.length;
         }
 
         @Override
-        public void write(byte[] b, int off, int len) {
-            setCountAtLeast(position + len, true);
-            System.arraycopy(b, off, buf, position, len);
+        public void write(int data) {
+            writeAt(position, data);
+            position++;
+        }
+
+        @Override
+        public void write(byte[] data, int off, int len) {
+            writeAt(position, data, off, len);
             position += len;
+        }
+
+        public void writeAt(int position, int data) {
+            setCountAtLeast(position + 1, true);
+            buf[position] = (byte) data;
+        }
+
+        public void writeAt(int position, byte[] data, int offset, int len) {
+            setCountAtLeast(position + len, true);
+            System.arraycopy(data, offset, buf, position, len);
+        }
+
+        @Override
+        public void flush() {
         }
 
         @Override
@@ -173,26 +188,47 @@ public class Buffer {
         }
 
         @Override
+        public boolean markSupported() {
+            return true;
+        }
+
+        @Override
         public int read(byte[] b) {
-            return read(b, 0, b.length);
+            int read = readAt(position, b, 0, b.length);
+            position += read;
+            return read;
         }
 
         @Override
         public int read() {
-            if (position + 1 > count)
-                return -1;
-            return buf[position++] & 0xFF;
+            int value = readAt(position);
+            if (value >= 0)
+                position++;
+            return value;
         }
 
         @Override
         public int read(byte[] b, int off, int len) {
+            int read = readAt(position, b, off, len);
+            if (read >= 0)
+                position += read;
+            return read;
+        }
+
+        public int readAt(int position) {
+            if (position + 1 > count)
+                return -1;
+            return buf[position] & 0xFF;
+        }
+
+        public int readAt(int position, byte[] b, int off, int len) {
             if (position >= count)
                 return -1;
             int toRead = Math.min(count - position, len);
             System.arraycopy(buf, position, b, off, toRead);
-            position += toRead;
             return toRead;
         }
+
 
         @Override
         public long skip(long n) {
