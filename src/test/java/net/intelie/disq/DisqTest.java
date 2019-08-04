@@ -241,8 +241,8 @@ public class DisqTest {
                 .setInitialBufferCapacity(100)
                 .setMaxBufferCapacity(1000);
 
-        SerializerPool<String> pool = builder.buildSerializerPool();
-        InternalQueue queue = builder.buildPersistentQueue();
+        PersistentQueue<String> queue = builder.buildPersistentQueue();
+        SerializerPool<String> pool = queue.pool();
 
 
         try (SerializerPool<String>.Slot slot = pool.acquire()) {
@@ -250,9 +250,7 @@ public class DisqTest {
         }
 
         assertThatThrownBy(() -> {
-            try (SerializerPool<String>.Slot slot = pool.acquire()) {
-                slot.push(queue, s);
-            }
+            queue.push(s);
         })
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Buffer overflowed")

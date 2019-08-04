@@ -99,24 +99,25 @@ public class DisqBuilder<T> {
     }
 
     public Disq<T> build(boolean paused) {
-        InternalQueue queue = buildPersistentQueue();
+        InternalQueue queue = buildInternalQueue();
         queue.setPopPaused(paused);
 
         return new Disq<T>(threadFactory, threadCount, autoFlushMs,
-                buildSerializerPool(),
-                processor, queue);
+                buildSerializerPool(), processor, queue);
     }
 
     public SerializerPool<T> buildSerializerPool() {
         return new SerializerPool<>(serializer, initialBufferCapacity, maxBufferCapacity);
     }
 
-    public InternalQueue buildPersistentQueue() {
-        return buildPersistentQueue(buildRawQueue());
+    public PersistentQueue<T> buildPersistentQueue() {
+        return new PersistentQueue<>(
+                buildInternalQueue(),
+                buildSerializerPool());
     }
 
-    public InternalQueue buildPersistentQueue(RawQueue rawQueue) {
-        return new InternalQueue(rawQueue, fallbackBufferCapacity);
+    public InternalQueue buildInternalQueue() {
+        return new InternalQueue(buildRawQueue(), fallbackBufferCapacity);
     }
 
     public DiskRawQueue buildRawQueue() {

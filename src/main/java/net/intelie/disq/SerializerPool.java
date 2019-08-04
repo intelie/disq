@@ -32,7 +32,6 @@ public class SerializerPool<T> {
             this.buffer = new Buffer(initialBufferSize, maxBufferSize);
         }
 
-
         @Override
         public void close() {
             this.ref.close();
