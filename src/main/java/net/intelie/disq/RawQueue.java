@@ -1,8 +1,9 @@
 package net.intelie.disq;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-public interface RawQueue extends AutoCloseable {
+public interface RawQueue extends Closeable {
     void reopen();
 
     long bytes();

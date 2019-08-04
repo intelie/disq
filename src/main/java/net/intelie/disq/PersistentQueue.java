@@ -1,9 +1,10 @@
 package net.intelie.disq;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class PersistentQueue<T> {
+public class PersistentQueue<T> implements Closeable {
     private final InternalQueue queue;
     private final SerializerPool<T> pool;
 
@@ -106,5 +107,4 @@ public class PersistentQueue<T> {
     public void close() {
         queue.close();
     }
-
 }

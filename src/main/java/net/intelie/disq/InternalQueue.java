@@ -3,10 +3,11 @@ package net.intelie.disq;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class InternalQueue {
+public class InternalQueue implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(InternalQueue.class);
 
     private static final long MAX_WAIT = TimeUnit.SECONDS.toNanos(10);
@@ -158,6 +159,7 @@ public class InternalQueue {
         }
     }
 
+    @Override
     public void close() {
         queue.close();
     }
