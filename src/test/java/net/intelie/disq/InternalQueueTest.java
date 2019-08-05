@@ -21,7 +21,6 @@ public class InternalQueueTest {
     @Rule
     public TemporaryFolder temp = new TemporaryFolder();
 
-
     @Test
     public void testAllocations() throws IOException, InterruptedException {
         DiskRawQueue disk = new DiskRawQueue(temp.getRoot().toPath(), 100000000);

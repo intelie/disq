@@ -186,6 +186,25 @@ public class BufferTest {
     }
 
     @Test
+    public void testReadAll() {
+        Buffer buffer = new Buffer();
+
+        PrintStream stream = new PrintStream(buffer.write());
+        stream.print("0123456789012345678901234567890123456789");
+
+        byte[] bytes = new byte[100];
+
+        Buffer.InStream read = buffer.read();
+        int read1 = read.read(bytes);
+        assertThat(read1).isEqualTo(40);
+        assertThat(new String(bytes, 0, read1, StandardCharsets.UTF_8))
+                .isEqualTo("0123456789012345678901234567890123456789");
+
+        assertThat(read.read(bytes)).isEqualTo(-1);
+        assertThat(read.read(bytes)).isEqualTo(-1);
+    }
+
+    @Test
     public void testMarkInMiddle() throws Exception {
         Buffer buffer = new Buffer();
 

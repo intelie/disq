@@ -194,9 +194,7 @@ public class Buffer {
 
         @Override
         public int read(byte[] b) {
-            int read = readAt(position, b, 0, b.length);
-            position += read;
-            return read;
+            return read(b, 0, b.length);
         }
 
         @Override

@@ -34,43 +34,52 @@ public class SerializerPool<T> {
 
         @Override
         public void close() {
+            buffer.clear();
+            serializer.clear();
             this.ref.close();
         }
 
         public boolean push(InternalQueue queue, T obj) throws IOException {
+            buffer.clear();
             serializer.serialize(buffer, obj);
             return queue.push(buffer);
         }
 
         public T pop(InternalQueue queue) throws IOException {
+            buffer.clear();
             if (!queue.pop(buffer))
                 return null;
             return serializer.deserialize(buffer);
         }
 
         public T peek(InternalQueue queue) throws IOException {
+            buffer.clear();
             if (!queue.peek(buffer))
                 return null;
             return serializer.deserialize(buffer);
         }
 
         public T blockingPop(InternalQueue queue) throws InterruptedException, IOException {
+            buffer.clear();
             queue.blockingPop(buffer);
             return serializer.deserialize(buffer);
         }
 
         public T blockingPop(InternalQueue queue, long amount, TimeUnit unit) throws InterruptedException, IOException {
+            buffer.clear();
             if (!queue.blockingPop(buffer, amount, unit))
                 return null;
             return serializer.deserialize(buffer);
         }
 
         public void blockingPush(InternalQueue queue, T obj) throws InterruptedException, IOException {
+            buffer.clear();
             serializer.serialize(buffer, obj);
             queue.blockingPush(buffer);
         }
 
         public boolean blockingPush(InternalQueue queue, T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
+            buffer.clear();
             serializer.serialize(buffer, obj);
             return queue.blockingPush(buffer, amount, unit);
         }

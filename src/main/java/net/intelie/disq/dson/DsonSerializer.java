@@ -26,15 +26,22 @@ public class DsonSerializer implements SerializerFactory<Object> {
 
         @Override
         public void serialize(Buffer buffer, Object obj) {
-            try (Buffer.OutStream stream = this.stream = buffer.write()) {
+            try (Buffer.OutStream stream = buffer.write()) {
                 serialize(stream, obj);
+            }
+        }
+
+        public void serialize(Buffer.OutStream stream, Object obj) {
+            this.stream = stream;
+            try {
+                serializerObject(stream, obj);
             } finally {
                 //doing that his way so I can use Map.forEach without allocations
                 this.stream = null;
             }
         }
 
-        public void serialize(Buffer.OutStream stream, Object obj) {
+        private void serializerObject(Buffer.OutStream stream, Object obj) {
             if (obj instanceof Map<?, ?>) {
                 DsonBinaryWrite.writeType(stream, DsonType.OBJECT);
                 DsonBinaryWrite.writeInt32(stream, ((Map<?, ?>) obj).size());
@@ -65,17 +72,17 @@ public class DsonSerializer implements SerializerFactory<Object> {
             } else if (obj == null) {
                 DsonBinaryWrite.writeType(stream, DsonType.NULL);
             } else {
-                serialize(stream, obj.toString());
+                serializerObject(stream, obj.toString());
             }
         }
 
         private void serializeSingle(Object v) {
-            serialize(stream, v);
+            serializerObject(stream, v);
         }
 
         private void serializeDouble(Object k, Object v) {
-            serialize(stream, k);
-            serialize(stream, v);
+            serializerObject(stream, k);
+            serializerObject(stream, v);
         }
 
         @Override
@@ -86,7 +93,7 @@ public class DsonSerializer implements SerializerFactory<Object> {
 
         }
 
-        private Object deserialize(Buffer.InStream stream) {
+        public Object deserialize(Buffer.InStream stream) {
             switch (DsonBinaryRead.readType(stream)) {
                 case OBJECT:
                     int objectSize = DsonBinaryRead.readInt32(stream);
