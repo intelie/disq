@@ -138,6 +138,14 @@ public class Buffer {
             position++;
         }
 
+        public void unsafePrepare(int length) {
+            setCountAtLeast(position + length, true);
+        }
+
+        public void unsafeWrite(int data) {
+            buf[position++] = (byte) data;
+        }
+
         @Override
         public void write(byte[] data, int off, int len) {
             writeAt(position, data, off, len);

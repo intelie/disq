@@ -42,7 +42,7 @@ public class DsonToBsonConverter {
         int start = out.position();
         DsonBinaryWrite.writeInt32(out, 0); //reserving space to write size
 
-        int count = DsonBinaryRead.readInt32(in);
+        int count = DsonBinaryRead.readCount(in);
         for (int i = 0; i < count; i++) {
             int typePosition = out.position();
             out.write(0); //reserving space to write type
@@ -58,7 +58,7 @@ public class DsonToBsonConverter {
         int start = out.position();
         DsonBinaryWrite.writeInt32(out, 0);  //reserving space to write size
 
-        int count = DsonBinaryRead.readInt32(in);
+        int count = DsonBinaryRead.readCount(in);
         for (int i = 0; i < count; i++) {
             int typePosition = out.position();
             out.write(0); //reserving space to write type
@@ -126,10 +126,10 @@ public class DsonToBsonConverter {
         for (int remaining = 1; remaining > 0; remaining--) {
             switch (DsonBinaryRead.readType(in)) {
                 case OBJECT:
-                    remaining += 2 * DsonBinaryRead.readInt32(in);
+                    remaining += 2 * DsonBinaryRead.readCount(in);
                     break;
                 case ARRAY:
-                    remaining += DsonBinaryRead.readInt32(in);
+                    remaining += DsonBinaryRead.readCount(in);
                     break;
                 case DOUBLE:
                     double numberValue = DsonBinaryRead.readNumber(in);

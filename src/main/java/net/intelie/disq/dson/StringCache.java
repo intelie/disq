@@ -8,7 +8,7 @@ public class StringCache {
     private final String[] cache;
 
     public StringCache() {
-        this(4096, 4, 1024);
+        this(2048, 4, 1024);
     }
 
     public StringCache(int bucketCount, int bucketSize, int maxStringLength) {
@@ -44,9 +44,10 @@ public class StringCache {
 
 
     private String finish(String cached, int n, int k) {
-        while (k > 0)
-            cache[n + k] = cache[n + --k];
-        return cache[n] = cached;
+        for (int i = n + k; i > n; i--)
+            cache[i] = cache[i - 1];
+        cache[n] = cached;
+        return cached;
     }
 
     private static boolean eq(String cached, CharSequence cs, int hash) {

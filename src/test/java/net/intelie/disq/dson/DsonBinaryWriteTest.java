@@ -9,6 +9,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class DsonBinaryWriteTest {
     @Test
+    public void writeVInt() {
+        Buffer buffer = new Buffer();
+        for (int i = -100000; i < 100000; i++) {
+            buffer.clear();
+            DsonBinaryWrite.writeCount(buffer.write(), i);
+            assertThat(DsonBinaryRead.readCount(buffer.read())).isEqualTo(i);
+        }
+    }
+
+    @Test
     public void testWriteLatin1() throws IOException {
         Buffer buf = new Buffer();
         Buffer.OutStream write = buf.write();

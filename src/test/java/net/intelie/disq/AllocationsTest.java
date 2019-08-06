@@ -105,10 +105,10 @@ public class AllocationsTest {
                 for (int remaining = 1; remaining > 0; remaining--, count++) {
                     switch (DsonBinaryRead.readType(stream)) {
                         case OBJECT:
-                            remaining += 2 * DsonBinaryRead.readInt32(stream);
+                            remaining += 2 * DsonBinaryRead.readCount(stream);
                             break;
                         case ARRAY:
-                            remaining += DsonBinaryRead.readInt32(stream);
+                            remaining += DsonBinaryRead.readCount(stream);
                             break;
                         case DOUBLE:
                             DsonBinaryRead.readNumber(stream);

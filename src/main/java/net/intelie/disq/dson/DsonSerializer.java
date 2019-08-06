@@ -12,14 +12,17 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class DsonSerializer implements SerializerFactory<Object> {
-    private final StringCache cache;
+    private final StringCache keyCache;
+    private final StringCache valueCache;
 
     public DsonSerializer() {
-        this(new StringCache());
+        this(new StringCache(), new StringCache());
     }
 
-    public DsonSerializer(StringCache cache) {
-        this.cache = cache;
+    public DsonSerializer(StringCache keyCache, StringCache valueCache) {
+        this.keyCache = keyCache;
+        this.valueCache = valueCache;
+
     }
 
     @Override
@@ -52,20 +55,15 @@ public class DsonSerializer implements SerializerFactory<Object> {
         }
 
         private void serializerObject(Buffer.OutStream stream, Object obj) {
-            if (obj instanceof Map<?, ?>) {
-                DsonBinaryWrite.writeType(stream, DsonType.OBJECT);
-                DsonBinaryWrite.writeInt32(stream, ((Map<?, ?>) obj).size());
-                ((Map<?, ?>) obj).forEach(SERIALIZE_DOUBLE);
-            } else if (obj instanceof Collection<?>) {
-                DsonBinaryWrite.writeType(stream, DsonType.ARRAY);
-                DsonBinaryWrite.writeInt32(stream, ((Collection<?>) obj).size());
-                ((Collection<?>) obj).forEach(SERIALIZE_SINGLE);
+            if (obj instanceof Number) {
+                DsonBinaryWrite.writeType(stream, DsonType.DOUBLE);
+                DsonBinaryWrite.writeNumber(stream, ((Number) obj).doubleValue());
             } else if (obj instanceof CharSequence) {
                 CharSequence str = (CharSequence) obj;
                 boolean latin1 = true;
-                for (int i = 0; latin1 && i < str.length(); i++) {
+                int length = str.length();
+                for (int i = 0; latin1 && i < length; i++)
                     latin1 = str.charAt(i) < 256;
-                }
                 if (latin1) {
                     DsonBinaryWrite.writeType(stream, DsonType.STRING_LATIN1);
                     DsonBinaryWrite.writeLatin1(stream, str);
@@ -73,9 +71,14 @@ public class DsonSerializer implements SerializerFactory<Object> {
                     DsonBinaryWrite.writeType(stream, DsonType.STRING);
                     DsonBinaryWrite.writeUnicode(stream, str);
                 }
-            } else if (obj instanceof Number) {
-                DsonBinaryWrite.writeType(stream, DsonType.DOUBLE);
-                DsonBinaryWrite.writeNumber(stream, ((Number) obj).doubleValue());
+            } else if (obj instanceof Map<?, ?>) {
+                DsonBinaryWrite.writeType(stream, DsonType.OBJECT);
+                DsonBinaryWrite.writeCount(stream, ((Map<?, ?>) obj).size());
+                ((Map<?, ?>) obj).forEach(SERIALIZE_DOUBLE);
+            } else if (obj instanceof Collection<?>) {
+                DsonBinaryWrite.writeType(stream, DsonType.ARRAY);
+                DsonBinaryWrite.writeCount(stream, ((Collection<?>) obj).size());
+                ((Collection<?>) obj).forEach(SERIALIZE_SINGLE);
             } else if (obj instanceof Boolean) {
                 DsonBinaryWrite.writeType(stream, DsonType.BOOLEAN);
                 DsonBinaryWrite.writeBoolean(stream, (Boolean) obj);
@@ -98,38 +101,38 @@ public class DsonSerializer implements SerializerFactory<Object> {
         @Override
         public Object deserialize(Buffer buffer) {
             try (Buffer.InStream stream = buffer.read()) {
-                return deserialize(stream);
+                return deserialize(stream, false);
             }
 
         }
 
-        public Object deserialize(Buffer.InStream stream) {
+        public Object deserialize(Buffer.InStream stream, boolean forKey) {
             switch (DsonBinaryRead.readType(stream)) {
-                case OBJECT:
-                    int objectSize = DsonBinaryRead.readInt32(stream);
-                    Map<Object, Object> map = new LinkedHashMap<>(objectSize);
-                    for (int i = 0; i < objectSize; i++) {
-                        Object key = deserialize(stream);
-                        Object value = deserialize(stream);
-                        map.put(key, value);
-                    }
-                    return map;
-                case ARRAY:
-                    int arraySize = DsonBinaryRead.readInt32(stream);
-                    ArrayList<Object> list = new ArrayList<>(arraySize);
-                    for (int i = 0; i < arraySize; i++)
-                        list.add(deserialize(stream));
-                    return list;
                 case DOUBLE:
                     return DsonBinaryRead.readNumber(stream);
                 case STRING:
                     DsonBinaryRead.readUnicode(stream, unicodeView);
-                    String unicodeStr = cache.get(unicodeView);
+                    String unicodeStr = getString(forKey, unicodeView);
                     unicodeView.set(null, 0, 0);
                     return unicodeStr;
+                case OBJECT:
+                    int objectSize = DsonBinaryRead.readCount(stream);
+                    Map<Object, Object> map = new LinkedHashMap<>(objectSize);
+                    for (int i = 0; i < objectSize; i++) {
+                        Object key = deserialize(stream, true);
+                        Object value = deserialize(stream, false);
+                        map.put(key, value);
+                    }
+                    return map;
+                case ARRAY:
+                    int arraySize = DsonBinaryRead.readCount(stream);
+                    ArrayList<Object> list = new ArrayList<>(arraySize);
+                    for (int i = 0; i < arraySize; i++)
+                        list.add(deserialize(stream, false));
+                    return list;
                 case STRING_LATIN1:
                     DsonBinaryRead.readLatin1(stream, latin1View);
-                    String latin1Str = cache.get(latin1View);
+                    String latin1Str = getString(forKey, latin1View);
                     latin1View.set(null, 0, 0);
                     return latin1Str;
                 case BOOLEAN:
@@ -139,6 +142,10 @@ public class DsonSerializer implements SerializerFactory<Object> {
                 default:
                     throw new IllegalStateException("unknown DSON type");
             }
+        }
+
+        private String getString(boolean forKey, CharSequence view) {
+            return forKey ? keyCache.get(view) : valueCache.get(view);
         }
 
     }

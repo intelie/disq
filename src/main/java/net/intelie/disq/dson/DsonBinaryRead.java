@@ -4,13 +4,13 @@ import net.intelie.disq.Buffer;
 
 public abstract class DsonBinaryRead {
     public static void readUnicode(Buffer.InStream stream, UnicodeView view) {
-        int len = readInt32(stream);
+        int len = readCount(stream);
         view.set(stream.buf(), stream.position(), len);
         stream.position(stream.position() + len * 2);
     }
 
     public static void readLatin1(Buffer.InStream stream, Latin1View view) {
-        int len = readInt32(stream);
+        int len = readCount(stream);
         view.set(stream.buf(), stream.position(), len);
         stream.position(stream.position() + len);
     }
@@ -25,6 +25,21 @@ public abstract class DsonBinaryRead {
 
     public static boolean readBoolean(Buffer.InStream stream) {
         return stream.read() > 0;
+    }
+
+    public static int readCount(Buffer.InStream stream) {
+        int read = stream.read();
+        if (read < 128)
+            return read;
+        int read2 = stream.read();
+        if (read2 < 128)
+            return (read & 0x7F) | read2 << 7;
+        return (read & 0x7F) |
+                (read2 & 0x7F) << 7 |
+                stream.read() << 14 |
+                stream.read() << 22 |
+                stream.read() << 30;
+
     }
 
     public static int readInt32(Buffer.InStream stream) {
