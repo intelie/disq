@@ -57,7 +57,7 @@ public abstract class DsonBinaryWrite {
     }
 
     public static void writeInt32(Buffer.OutStream stream, int value) {
-        stream.unsafePrepare(8);
+        stream.unsafePrepare(4);
         stream.unsafeWrite((value) & 0xFF);
         stream.unsafeWrite((value >> 8) & 0xFF);
         stream.unsafeWrite((value >> 16) & 0xFF);
