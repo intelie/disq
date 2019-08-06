@@ -12,12 +12,22 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class DsonSerializer implements SerializerFactory<Object> {
+    private final StringCache cache;
+
+    public DsonSerializer() {
+        this(new StringCache());
+    }
+
+    public DsonSerializer(StringCache cache) {
+        this.cache = cache;
+    }
+
     @Override
     public DsonSerializer.Instance create() {
         return new Instance();
     }
 
-    public static class Instance implements Serializer<Object> {
+    public class Instance implements Serializer<Object> {
         private final UnicodeView unicodeView = new UnicodeView();
         private final Latin1View latin1View = new Latin1View();
         private final BiConsumer<Object, Object> SERIALIZE_DOUBLE = this::serializeDouble;
@@ -114,10 +124,14 @@ public class DsonSerializer implements SerializerFactory<Object> {
                     return DsonBinaryRead.readNumber(stream);
                 case STRING:
                     DsonBinaryRead.readUnicode(stream, unicodeView);
-                    return unicodeView.toString();
+                    String unicodeStr = cache.get(unicodeView);
+                    unicodeView.set(null, 0, 0);
+                    return unicodeStr;
                 case STRING_LATIN1:
                     DsonBinaryRead.readLatin1(stream, latin1View);
-                    return latin1View.toString();
+                    String latin1Str = cache.get(latin1View);
+                    latin1View.set(null, 0, 0);
+                    return latin1Str;
                 case BOOLEAN:
                     return DsonBinaryRead.readBoolean(stream);
                 case NULL:

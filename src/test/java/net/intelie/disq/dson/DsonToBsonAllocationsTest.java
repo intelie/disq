@@ -37,7 +37,7 @@ public class DsonToBsonAllocationsTest {
         Buffer in = new Buffer();
         Buffer out = new Buffer();
 
-        DsonSerializer.Instance dson = new DsonSerializer.Instance();
+        DsonSerializer.Instance dson = new DsonSerializer().create();
 
         DsonToBsonConverter converter = new DsonToBsonConverter();
 

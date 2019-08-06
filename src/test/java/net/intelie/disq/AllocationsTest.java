@@ -84,7 +84,7 @@ public class AllocationsTest {
 
 
     private static class NoopSerializer implements Serializer<Object> {
-        private final DsonSerializer.Instance instance = new DsonSerializer.Instance();
+        private final DsonSerializer.Instance instance = new DsonSerializer().create();
         private final UnicodeView unicodeView = new UnicodeView();
         private final Latin1View latin1View = new Latin1View();
         private final AtomicLong totalCount;

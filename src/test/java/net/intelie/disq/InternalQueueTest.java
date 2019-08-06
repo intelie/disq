@@ -328,7 +328,7 @@ public class InternalQueueTest {
 
     private static class Adapter {
         private final SerializerPool<String> pool = new SerializerPool<>(
-                () -> new GsonSerializer<>(String.class),
+                new GsonSerializer<>(String.class),
                 1000, -1);
         private final InternalQueue queue;
 

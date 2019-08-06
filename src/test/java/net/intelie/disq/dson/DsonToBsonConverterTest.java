@@ -138,7 +138,7 @@ public class DsonToBsonConverterTest {
         Buffer in = new Buffer();
         Buffer out = new Buffer();
 
-        DsonSerializer.Instance dson = new DsonSerializer.Instance();
+        DsonSerializer.Instance dson = new DsonSerializer().create();
         dson.serialize(in, input);
 
         DsonToBsonConverter converter = new DsonToBsonConverter();
