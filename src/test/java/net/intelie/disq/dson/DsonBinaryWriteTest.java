@@ -80,6 +80,7 @@ public class DsonBinaryWriteTest {
         for (long i = 3; i < Long.MAX_VALUE / 3; i *= 3) {
             Buffer buf = new Buffer();
             DsonBinaryWrite.writeInt64(buf.write(), i);
+            assertThat(buf.count()).isEqualTo(8);
             assertThat(DsonBinaryRead.readInt64(buf.read())).isEqualTo(i);
         }
     }
@@ -89,6 +90,7 @@ public class DsonBinaryWriteTest {
         for (double i = Double.MIN_VALUE; i < Double.MAX_VALUE; i *= 3) {
             Buffer buf = new Buffer();
             DsonBinaryWrite.writeNumber(buf.write(), i);
+            assertThat(buf.count()).isEqualTo(8);
             assertThat(DsonBinaryRead.readNumber(buf.read())).isEqualTo(i);
         }
     }
@@ -98,6 +100,7 @@ public class DsonBinaryWriteTest {
         for (int i = 3; i < Integer.MAX_VALUE / 3; i *= 3) {
             Buffer buf = new Buffer();
             DsonBinaryWrite.writeInt32(buf.write(), i);
+            assertThat(buf.count()).isEqualTo(4);
             assertThat(DsonBinaryRead.readInt32(buf.read())).isEqualTo(i);
         }
     }
