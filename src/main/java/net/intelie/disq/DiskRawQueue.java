@@ -1,6 +1,5 @@
 package net.intelie.disq;
 
-import jdk.internal.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
