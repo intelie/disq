@@ -20,6 +20,12 @@ public class DiskRawQueueTest {
     public TemporaryFolder temp = new TemporaryFolder();
 
     @Test
+    public void testTryToAdd1_1GBElement() {
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
+        queue.close();
+    }
+
+    @Test
     public void testPushOnClosedQueue() throws Exception {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         queue.close();

@@ -5,6 +5,7 @@ import net.intelie.disq.dson.DsonSerializer;
 import net.intelie.introspective.ThreadResources;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class Main {
@@ -24,9 +25,8 @@ public class Main {
         ));
 
 
-        benchmark(map2, new FstSerializer());
-        benchmark(map2, new DsonSerializer());
-        benchmark(map2, new FstSerializer());
+        //StateFile file = new StateFile(Paths.get("/home/juanplopes/Downloads/test/core.storage.main/state"));
+
         benchmark(map2, new DsonSerializer());
 
     }
@@ -38,16 +38,6 @@ public class Main {
                 .setSerializer(serializer)
                 .setDirectory("/home/juanplopes/Downloads/test/core.storage.main")
                 .buildPersistentQueue()) {
-            q.clear();
-
-
-            for (int i = 0; i < 10000; i++)
-                q.push(map2);
-            while (q.count() > 0)
-                q.pop();
-            q.clear();
-
-
             long start = System.nanoTime();
             long memStart = ThreadResources.allocatedBytes(Thread.currentThread());
 

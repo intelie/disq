@@ -105,7 +105,7 @@ public class StateFile implements Closeable {
     }
 
     public long getReadPosition() {
-        return readPosition;
+        return readPosition >= 0 ? readPosition : readPosition + (1L << 31);
     }
 
     public int getWriteFile() {
@@ -155,7 +155,7 @@ public class StateFile implements Closeable {
     }
 
     public long getWritePosition() {
-        return writePosition;
+        return writePosition >= 0 ? writePosition : writePosition + (1L << 31);
     }
 
     @Override

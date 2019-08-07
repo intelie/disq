@@ -1,5 +1,6 @@
 package net.intelie.disq;
 
+import jdk.internal.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +24,7 @@ public class DiskRawQueue implements RawQueue {
     private StateFile state;
     private DataFileReader reader;
     private DataFileWriter writer;
-    private int failedReads = 0, oldFailedReads = 0;
+    private int failedReads = 0;
     private long flushCount = 0;
 
     public DiskRawQueue(Path directory, long maxSize) {
@@ -167,7 +168,6 @@ public class DiskRawQueue implements RawQueue {
     private int innerRead(Buffer buffer) throws IOException {
         try {
             int read = reader().read(buffer);
-            oldFailedReads = failedReads;
             failedReads = 0;
             return read;
         } catch (Throwable e) {
@@ -218,6 +218,7 @@ public class DiskRawQueue implements RawQueue {
 
 
     private boolean checkFutureQueueOverflow(int count) throws IOException {
+
         if (deleteOldestOnOverflow) {
             while (!state.sameFileReadWrite() && willOverflow(count))
                 deleteOldestFile(false);
