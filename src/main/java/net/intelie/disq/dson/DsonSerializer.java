@@ -101,9 +101,13 @@ public class DsonSerializer implements SerializerFactory<Object> {
         @Override
         public Object deserialize(Buffer buffer) {
             try (Buffer.InStream stream = buffer.read()) {
-                return deserialize(stream, false);
+                return deserialize(stream);
             }
 
+        }
+
+        public Object deserialize(Buffer.InStream stream) {
+            return deserialize(stream, false);
         }
 
         public Object deserialize(Buffer.InStream stream, boolean forKey) {
