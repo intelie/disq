@@ -1,13 +1,10 @@
 package net.intelie.disq;
 
 import java.lang.ref.SoftReference;
-import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class ObjectPool<T> {
     private final ArrayDeque<Ref> queue = new ArrayDeque<>();

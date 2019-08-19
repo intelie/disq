@@ -1,8 +1,5 @@
 package net.intelie.disq.dson;
 
-import javax.print.DocFlavor;
-import java.util.Locale;
-
 public class Latin1View implements CharSequence {
     private StringBuilder builder;
     private byte[] buf;

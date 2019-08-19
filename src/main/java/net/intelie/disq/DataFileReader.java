@@ -1,8 +1,6 @@
 package net.intelie.disq;
 
 import java.io.*;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class DataFileReader implements Closeable {
