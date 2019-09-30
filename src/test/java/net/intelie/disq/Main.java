@@ -1,10 +1,13 @@
 package net.intelie.disq;
 
 import com.google.gson.Gson;
+import net.intelie.disq.dson.DsonBinaryRead;
+import net.intelie.disq.dson.DsonBinaryWrite;
 import net.intelie.disq.dson.DsonSerializer;
 import net.intelie.introspective.ThreadResources;
 
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -13,7 +16,6 @@ public class Main {
         Map map2 = new LinkedHashMap<>(new Gson().fromJson(
                 "{\"index_timestamp\":1.56294378011E12,\"wellbore_name\":\"1\",\"adjusted_index_timestamp\":1.562943817363E12,\"source\":\"WITS\",\"depth_value\":6717.527,\"uom\":\"unitless\",\"extra\":\"RBNvo1WzZ4o\",\"mnemonic\":\"STKNUM\",\"well_name\":\"MP72 – A11 ST\",\"depth_mnemonic\":\"DEPTMEAS\",\"value\":0.0,\"errors\":[\"missing_src_unit\",\"unknown_src_unit\"],\"timestamp\":1.562943818361E12,\"__type\":\"ensco75\",\"__src\":\"replay/rig11_b\"}",
                 Map.class));
-
 
         Map<Object, Object> map = new LinkedHashMap<>();
         map.put(111, "aaa");
@@ -28,6 +30,9 @@ public class Main {
         //StateFile file = new StateFile(Paths.get("/home/juanplopes/Downloads/test/core.storage.main/state"));
 
         benchmark(map2, new DsonSerializer());
+        benchmark(map2, new FstSerializer());
+        benchmark(map2, new DefaultSerializer<>());
+        benchmark(map2, GsonSerializer.make());
 
     }
 
@@ -38,6 +43,7 @@ public class Main {
                 .setSerializer(serializer)
                 .setDirectory("/home/juanplopes/Downloads/test/core.storage.main")
                 .buildPersistentQueue()) {
+            q.clear();
             long start = System.nanoTime();
             long memStart = ThreadResources.allocatedBytes(Thread.currentThread());
 
@@ -67,6 +73,53 @@ public class Main {
             System.out.printf("alloc: %.3f bytes/obj\n",
                     (ThreadResources.allocatedBytes(Thread.currentThread()) - memStart) / (double) count);
             System.out.println();
+        }
+    }
+
+    public static class StorageEventSerializer implements SerializerFactory<Object> {
+        private final DsonSerializer dson = new DsonSerializer();
+
+        @Override
+        public Serializer<Object> create() {
+            return new Serializer<Object>() {
+                private final DsonSerializer.Instance instance = dson.create();
+                private final Gson gson = new Gson();
+
+                @Override
+                public void serialize(Buffer buffer, Object storageEvent) throws IOException {
+                }
+
+                @Override
+                public Object deserialize(Buffer buffer) throws IOException {
+                    if (buffer.buf().length >= 5 && buffer.buf()[4] == '{') {
+                        //here, have some poetry:
+                        //old queue format started with a JSON after retry
+                        //new queue format writes a DsonType which is never JSON
+                        //so we support old queue format by checking that byte
+                        //this code should be removed when that queue is gone
+
+                        return workaroundForOldQueueFormat(buffer);
+                    }
+
+                    try (Buffer.InStream stream = buffer.read()) {
+                        int retries = DsonBinaryRead.readInt32(stream);
+
+                        Object o = instance.deserialize(stream);
+                        return o;
+                    }
+                }
+
+                private Object workaroundForOldQueueFormat(Buffer buffer) throws IOException {
+                    Buffer.InStream read = buffer.read();
+                    DataInputStream dataStream = new DataInputStream(read);
+                    int retries = dataStream.readInt();
+
+                    try (InputStreamReader reader = new InputStreamReader(read, StandardCharsets.UTF_8)) {
+                        Map map = gson.fromJson(reader, Map.class);
+                        return map;
+                    }
+                }
+            };
         }
     }
 

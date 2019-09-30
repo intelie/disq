@@ -24,6 +24,9 @@ public class Disq<T> implements AutoCloseable {
 
     public Disq(ThreadFactory factory, int threads, long autoFlushMs, SerializerPool<T> serializerPool,
                 Processor<T> processor, InternalQueue queue) {
+        if (autoFlushMs > 0)
+            threads = Math.max(threads, 1);
+
         this.threads = new ArrayList<>(threads);
         this.autoFlushNanos = autoFlushMs * 1_000_000;
         this.serializerPool = serializerPool;
