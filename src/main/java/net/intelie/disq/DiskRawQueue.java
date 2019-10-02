@@ -60,7 +60,7 @@ public class DiskRawQueue implements RawQueue {
             this.temp = true;
         }
         Files.createDirectories(this.directory);
-        this.state = new StateFile(this.directory.resolve("state"));
+        this.state = new StateFile(this.directory.resolve("state"), false);
         this.writer = null;
         this.reader = null;
         gc();

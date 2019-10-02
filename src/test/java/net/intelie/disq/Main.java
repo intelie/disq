@@ -2,7 +2,6 @@ package net.intelie.disq;
 
 import com.google.gson.Gson;
 import net.intelie.disq.dson.DsonBinaryRead;
-import net.intelie.disq.dson.DsonBinaryWrite;
 import net.intelie.disq.dson.DsonSerializer;
 import net.intelie.introspective.ThreadResources;
 
@@ -13,26 +12,44 @@ import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        Map map2 = new LinkedHashMap<>(new Gson().fromJson(
-                "{\"index_timestamp\":1.56294378011E12,\"wellbore_name\":\"1\",\"adjusted_index_timestamp\":1.562943817363E12,\"source\":\"WITS\",\"depth_value\":6717.527,\"uom\":\"unitless\",\"extra\":\"RBNvo1WzZ4o\",\"mnemonic\":\"STKNUM\",\"well_name\":\"MP72 – A11 ST\",\"depth_mnemonic\":\"DEPTMEAS\",\"value\":0.0,\"errors\":[\"missing_src_unit\",\"unknown_src_unit\"],\"timestamp\":1.562943818361E12,\"__type\":\"ensco75\",\"__src\":\"replay/rig11_b\"}",
-                Map.class));
+        try (DiskQueueReader queue = new DiskQueueReader(Paths.get("/home/juanplopes/Downloads/queue"))) {
+            System.out.println(queue.count());
 
-        Map<Object, Object> map = new LinkedHashMap<>();
-        map.put(111, "aaa");
-        map.put("âçãó", true);
-        map.put("ccc", null);
-        map.put(Arrays.asList("ddd", "eee"), Arrays.asList(
-                Collections.singletonMap(222.0, false),
-                Collections.singletonMap("fff", "(╯°□°)╯︵ ┻━┻")
-        ));
+            Buffer buffer = new Buffer();
+            Serializer<Object> serializer = new StorageEventSerializer().create();
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("/home/juanplopes/Downloads/queue.txt"))) {
+                while (queue.moveNext(buffer)) {
+                    Map event = (Map) serializer.deserialize(buffer);
+                    writer.write(event.toString());
+                    writer.write('\n');
+                    System.out.println(event.get("__type") + " " + new Date(((Number) event.get("timestamp")).longValue()));
+                }
+            }
+        }
 
 
-        //StateFile file = new StateFile(Paths.get("/home/juanplopes/Downloads/test/core.storage.main/state"));
-
-        benchmark(map2, new DsonSerializer());
-        benchmark(map2, new FstSerializer());
-        benchmark(map2, new DefaultSerializer<>());
-        benchmark(map2, GsonSerializer.make());
+        //        Map map2 = new LinkedHashMap<>(new Gson().fromJson(
+//                "{\"index_timestamp\":1.56294378011E12,\"wellbore_name\":\"1\",\"adjusted_index_timestamp\":1.562943817363E12,\"source\":\"WITS\",\"depth_value\":6717.527,\"uom\":\"unitless\",\"extra\":\"RBNvo1WzZ4o\",\"mnemonic\":\"STKNUM\",\"well_name\":\"MP72 – A11 ST\",\"depth_mnemonic\":\"DEPTMEAS\",\"value\":0.0,\"errors\":[\"missing_src_unit\",\"unknown_src_unit\"],\"timestamp\":1.562943818361E12,\"__type\":\"ensco75\",\"__src\":\"replay/rig11_b\"}",
+//                Map.class));
+//
+//
+//        Map<Object, Object> map = new LinkedHashMap<>();
+//        map.put(111, "aaa");
+//        map.put("âçãó", true);
+//        map.put("ccc", null);
+//        map.put(Arrays.asList("ddd", "eee"), Arrays.asList(
+//                Collections.singletonMap(222.0, false),
+//                Collections.singletonMap("fff", "(╯°□°)╯︵ ┻━┻")
+//        ));
+//
+//
+//        //StateFile file = new StateFile(Paths.get("/home/juanplopes/Downloads/test/core.storage.main/state"));
+//
+//        benchmark(map2, new DsonSerializer());
+//        benchmark(map2, new FstSerializer());
+//        benchmark(map2, new DefaultSerializer<>());
+//        benchmark(map2, GsonSerializer.make());
 
     }
 

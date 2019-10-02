@@ -20,7 +20,7 @@ public class StateFileTest {
     @Before
     public void setUp() throws Exception {
         statePath = temp.newFile();
-        state = new StateFile(statePath.toPath());
+        state = new StateFile(statePath.toPath(), false);
     }
 
     @Test
@@ -88,7 +88,7 @@ public class StateFileTest {
         state.flush();
         state.close();
 
-        state = new StateFile(statePath.toPath());
+        state = new StateFile(statePath.toPath(), false);
 
         assertThreeFirst(state, 1, 2, 50, 82, 1, 83, 0, -1, 2);
     }
@@ -120,7 +120,7 @@ public class StateFileTest {
         state.flush();
         state.close();
 
-        state = new StateFile(statePath.toPath());
+        state = new StateFile(statePath.toPath(), false);
 
         assertThreeFirst(state, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }

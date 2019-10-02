@@ -17,6 +17,7 @@ public class StateFile implements Closeable {
 
     private final RandomAccessFile randomWrite;
     private final ByteBuffer buffer = ByteBuffer.allocate(EXPECTED_SIZE);
+    private final boolean readonly;
     private int readFile, writeFile;
     private int readPosition, writePosition;
     private long count;
@@ -25,9 +26,10 @@ public class StateFile implements Closeable {
     private long unflushed;
     private boolean dirty;
 
-    public StateFile(Path file) throws IOException {
+    public StateFile(Path file, boolean readonly) throws IOException {
+        this.readonly = readonly;
         this.fileCounts = new int[MAX_FILES];
-        this.randomWrite = new RandomAccessFile(file.toFile(), "rw");
+        this.randomWrite = readonly ? null : new RandomAccessFile(file.toFile(), "rw");
         if (Files.exists(file) && Files.size(file) == EXPECTED_SIZE) {
             try (DataInputStream stream = new DataInputStream(new FileInputStream(file.toFile()))) {
                 readFile = stream.readShort();
@@ -59,7 +61,7 @@ public class StateFile implements Closeable {
     }
 
     public void flush() throws IOException {
-        if (!dirty) return;
+        if (!dirty || readonly) return;
         buffer.position(0);
         buffer.putShort((short) readFile);
         buffer.putShort((short) writeFile);
@@ -161,7 +163,8 @@ public class StateFile implements Closeable {
     @Override
     public void close() throws IOException {
         flush();
-        randomWrite.close();
+        if (randomWrite != null)
+            randomWrite.close();
     }
 
     public int getFileCount(int file) {
