@@ -58,11 +58,7 @@ public class DiskQueueReader implements Closeable {
 
     @Override
     public void close() throws IOException {
-        try {
-            if (reader != null)
-                reader.close();
-        } finally {
-            state.close();
-        }
+        if (reader != null)
+            reader.close();
     }
 }
