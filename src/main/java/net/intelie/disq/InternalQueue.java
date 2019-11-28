@@ -16,14 +16,14 @@ public class InternalQueue implements Closeable {
     private final RawQueue queue;
     private final RawQueue original;
 
-    private boolean popPaused, pushPaused;
+    private boolean paused;
 
     public InternalQueue(RawQueue queue) {
         this(queue, 0);
     }
 
     public InternalQueue(RawQueue queue, int fallbackBufferCapacity) {
-        this.fallback = new ArrayRawQueue(fallbackBufferCapacity, true);
+        this.fallback = new ArrayRawQueue(fallbackBufferCapacity);
         this.original = queue;
         this.queue = new LenientRawQueue(queue);
     }
@@ -36,14 +36,10 @@ public class InternalQueue implements Closeable {
         return fallback;
     }
 
-    public synchronized void setPopPaused(boolean popPaused) {
-        this.popPaused = popPaused;
-        notifyAll();
-    }
-
-    public synchronized void setPushPaused(boolean pushPaused) {
-        this.pushPaused = pushPaused;
-        notifyAll();
+    public synchronized void setPaused(boolean paused) {
+        this.paused = paused;
+        if (!paused)
+            notifyAll();
     }
 
     public void reopen() throws IOException {
@@ -92,55 +88,9 @@ public class InternalQueue implements Closeable {
             TimeUnit.NANOSECONDS.timedWait(this, MAX_WAIT);
     }
 
-    public synchronized boolean blockingPush(Buffer buffer, long amount, TimeUnit unit) throws InterruptedException {
-        long target = System.nanoTime() + unit.toNanos(amount);
-        while (!push(buffer)) {
-            long wait = Math.min(MAX_WAIT, target - System.nanoTime());
-            if (wait <= 0) return false;
-            TimeUnit.NANOSECONDS.timedWait(this, wait);
-        }
-        return true;
-    }
-
-    public synchronized void blockingPush(Buffer buffer) throws InterruptedException {
-        while (!push(buffer))
-            TimeUnit.NANOSECONDS.timedWait(this, MAX_WAIT);
-    }
 
     public synchronized boolean pop(Buffer buffer) {
-        if (popPaused) return false;
-        if (!innerPop(buffer))
-            return false;
-        else {
-            notifyAll();
-            return true;
-        }
-    }
-
-    public synchronized boolean push(Buffer buffer) {
-        if (pushPaused) return false;
-        if (!innerPush(buffer))
-            return false;
-        else {
-            notifyAll();
-            return true;
-        }
-    }
-
-    public boolean peek(Buffer buffer) {
-        if (popPaused) return false;
-
-        try {
-            if (fallback.peek(buffer)) return true;
-            return queue.peek(buffer);
-        } catch (IOException e) {
-            LOGGER.info("Error peeking", e);
-            return false;
-        }
-    }
-
-    private boolean innerPop(Buffer buffer) {
-
+        if (paused) return false;
         try {
             if (fallback.pop(buffer)) return true;
             return queue.pop(buffer);
@@ -150,12 +100,25 @@ public class InternalQueue implements Closeable {
         }
     }
 
-    private boolean innerPush(Buffer buffer) {
+    public synchronized void push(Buffer buffer) {
         try {
-            return queue.push(buffer);
+            queue.push(buffer);
         } catch (IOException e) {
             LOGGER.info("Error pushing", e);
-            return fallback.push(buffer);
+            fallback.push(buffer);
+        }
+        notify();
+    }
+
+    public boolean peek(Buffer buffer) {
+        if (paused) return false;
+
+        try {
+            if (fallback.peek(buffer)) return true;
+            return queue.peek(buffer);
+        } catch (IOException e) {
+            LOGGER.info("Error peeking", e);
+            return false;
         }
     }
 

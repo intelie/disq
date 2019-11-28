@@ -118,7 +118,7 @@ public class DiskRawQueueTest {
 
     @Test
     public void testSimplePushsAndPopsNoFlush() throws Exception {
-        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, true);
+        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false);
         queue.flush();
 
         for (int i = 0; i < 20; i++) {
@@ -189,7 +189,7 @@ public class DiskRawQueueTest {
         assertThat(queue.remainingBytes()).isEqualTo(0);
         assertThat(queue.remainingCount()).isEqualTo(0);
 
-        assertThat(push(queue, s)).isTrue();
+        push(queue, s);
 
         assertThat(queue.count()).isEqualTo(121);
         assertThat(queue.bytes()).isEqualTo(512 * 121);
@@ -245,24 +245,6 @@ public class DiskRawQueueTest {
         assertThat(queue.bytes()).isEqualTo(512 * 60);
         assertThat(queue.remainingBytes()).isEqualTo(61 * 512);
         assertThat(queue.remainingCount()).isEqualTo(61);
-    }
-
-    @Test
-    public void testLimitByMaxSizeNoOverflow() throws Exception {
-        DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 512 * 121, true, true, false);
-
-        String s = Strings.repeat("a", 508);
-
-        for (int i = 0; i < 121; i++)
-            push(queue, s);
-
-        assertThat(queue.count()).isEqualTo(121);
-        assertThat(queue.bytes()).isEqualTo(512 * 121);
-
-        assertThat(push(queue, s)).isFalse();
-
-        assertThat(queue.count()).isEqualTo(121);
-        assertThat(queue.bytes()).isEqualTo(512 * 121);
     }
 
     @Test
@@ -368,8 +350,8 @@ public class DiskRawQueueTest {
         assertThat(queue.count()).isEqualTo(count);
     }
 
-    private boolean push(DiskRawQueue queue, String s) throws IOException {
-        return queue.push(new Buffer(s.getBytes(StandardCharsets.UTF_8)));
+    private void push(DiskRawQueue queue, String s) throws IOException {
+        queue.push(new Buffer(s.getBytes(StandardCharsets.UTF_8)));
     }
 
     private String pop(DiskRawQueue queue) throws IOException {

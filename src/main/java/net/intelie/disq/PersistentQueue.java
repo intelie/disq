@@ -25,12 +25,8 @@ public class PersistentQueue<T> implements Closeable {
         return queue.fallbackQueue();
     }
 
-    public void setPopPaused(boolean popPaused) {
-        queue.setPopPaused(popPaused);
-    }
-
-    public void setPushPaused(boolean pushPaused) {
-        queue.setPushPaused(pushPaused);
+    public void setPaused(boolean paused) {
+        queue.setPaused(paused);
     }
 
     public void reopen() throws IOException {
@@ -74,27 +70,15 @@ public class PersistentQueue<T> implements Closeable {
 
     }
 
-    public boolean blockingPush(T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
-        try (SerializerPool<T>.Slot slot = pool.acquire()) {
-            return slot.blockingPush(queue, obj, amount, unit);
-        }
-    }
-
-    public void blockingPush(T obj) throws InterruptedException, IOException {
-        try (SerializerPool<T>.Slot slot = pool.acquire()) {
-            slot.blockingPush(queue, obj);
-        }
-    }
-
     public T pop() throws IOException {
         try (SerializerPool<T>.Slot slot = pool.acquire()) {
             return slot.pop(queue);
         }
     }
 
-    public boolean push(T obj) throws IOException {
+    public void push(T obj) throws IOException {
         try (SerializerPool<T>.Slot slot = pool.acquire()) {
-            return slot.push(queue, obj);
+            slot.push(queue, obj);
         }
     }
 

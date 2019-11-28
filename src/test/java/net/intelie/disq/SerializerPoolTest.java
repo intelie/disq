@@ -30,7 +30,7 @@ public class SerializerPoolTest {
         MySerializer serializer = new MySerializer();
         SerializerPool<Object> pool = new SerializerPool<>(serializer, 100, 1000);
 
-        InternalQueue queue = new InternalQueue(new ArrayRawQueue(1000, true));
+        InternalQueue queue = new InternalQueue(new ArrayRawQueue(1000));
 
         try (SerializerPool<Object>.Slot slot = pool.acquire()) {
             slot.buffer().write().write(new byte[]{1, 2, 3});
@@ -51,11 +51,11 @@ public class SerializerPoolTest {
         MySerializer serializer = new MySerializer();
         SerializerPool<Object> pool = new SerializerPool<>(serializer, 100, 1000);
 
-        InternalQueue queue = new InternalQueue(new ArrayRawQueue(1000, true));
+        InternalQueue queue = new InternalQueue(new ArrayRawQueue(1000));
 
         try (SerializerPool<Object>.Slot slot = pool.acquire()) {
             slot.buffer().write().write(new byte[]{1, 2, 3});
-            slot.blockingPush(queue, "does not matter");
+            slot.push(queue, "does not matter");
 
             slot.buffer().clear();
             slot.buffer().write().write(new byte[]{1, 2, 3});
@@ -68,11 +68,11 @@ public class SerializerPoolTest {
         MySerializer serializer = new MySerializer();
         SerializerPool<Object> pool = new SerializerPool<>(serializer, 100, 1000);
 
-        InternalQueue queue = new InternalQueue(new ArrayRawQueue(1000, true));
+        InternalQueue queue = new InternalQueue(new ArrayRawQueue(1000));
 
         try (SerializerPool<Object>.Slot slot = pool.acquire()) {
             slot.buffer().write().write(new byte[]{1, 2, 3});
-            slot.blockingPush(queue, "does not matter", 1, TimeUnit.MINUTES);
+            slot.push(queue, "does not matter");
 
             slot.buffer().clear();
             slot.buffer().write().write(new byte[]{1, 2, 3});

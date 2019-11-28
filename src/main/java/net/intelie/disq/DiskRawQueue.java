@@ -13,9 +13,7 @@ public class DiskRawQueue implements RawQueue {
     private final long maxSize;
     private final long dataFileLimit;
     private final boolean flushOnRead;
-
     private final boolean flushOnWrite;
-    private final boolean deleteOldestOnOverflow;
 
     private boolean temp;
     private Path directory;
@@ -27,17 +25,16 @@ public class DiskRawQueue implements RawQueue {
     private long flushCount = 0;
 
     public DiskRawQueue(Path directory, long maxSize) {
-        this(directory, maxSize, true, true, true);
+        this(directory, maxSize, true, true);
     }
 
-    public DiskRawQueue(Path directory, long maxSize, boolean flushOnPop, boolean flushOnPush, boolean deleteOldestOnOverflow) {
+    public DiskRawQueue(Path directory, long maxSize, boolean flushOnPop, boolean flushOnPush) {
         this.directory = directory;
         this.maxSize = Math.max(Math.min(maxSize, StateFile.MAX_QUEUE_SIZE), StateFile.MIN_QUEUE_SIZE);
         this.dataFileLimit = Math.max(512, this.maxSize / StateFile.MAX_FILES + (this.maxSize % StateFile.MAX_FILES > 0 ? 1 : 0));
 
         this.flushOnRead = flushOnPop;
         this.flushOnWrite = flushOnPush;
-        this.deleteOldestOnOverflow = deleteOldestOnOverflow;
         this.temp = false;
 
         reopen();
@@ -199,12 +196,11 @@ public class DiskRawQueue implements RawQueue {
 
 
     @Override
-    public synchronized boolean push(Buffer buffer) throws IOException {
+    public synchronized void push(Buffer buffer) throws IOException {
         touch();
 
         checkWriteEOF();
-        if (checkFutureQueueOverflow(buffer.count()))
-            return false;
+        deleteOldIfNeeded(buffer.count());
 
         int written = writer().write(buffer);
         state.addWriteCount(written);
@@ -212,19 +208,12 @@ public class DiskRawQueue implements RawQueue {
             internalFlush();
 
         checkWriteEOF();
-        return true;
     }
 
 
-    private boolean checkFutureQueueOverflow(int count) throws IOException {
-
-        if (deleteOldestOnOverflow) {
-            while (!state.sameFileReadWrite() && willOverflow(count))
-                deleteOldestFile(false);
-            return false;
-        } else {
-            return willOverflow(count);
-        }
+    private void deleteOldIfNeeded(int count) throws IOException {
+        while (!state.sameFileReadWrite() && willOverflow(count))
+            deleteOldestFile(false);
     }
 
     @Override

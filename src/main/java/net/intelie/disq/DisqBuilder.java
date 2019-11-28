@@ -15,7 +15,6 @@ public class DisqBuilder<T> {
     private boolean flushOnPush = true;
     private long autoFlushMs = -1;
 
-    private boolean deleteOldestOnOverflow = true;
     private int initialBufferCapacity = 4096;
     private int maxBufferCapacity = -1;
     private int fallbackBufferCapacity = 0;
@@ -60,11 +59,6 @@ public class DisqBuilder<T> {
         return this;
     }
 
-    public DisqBuilder<T> setDeleteOldestOnOverflow(boolean deleteOldestOnOverflow) {
-        this.deleteOldestOnOverflow = deleteOldestOnOverflow;
-        return this;
-    }
-
     public DisqBuilder<T> setInitialBufferCapacity(int initialBufferCapacity) {
         this.initialBufferCapacity = initialBufferCapacity;
         return this;
@@ -100,7 +94,7 @@ public class DisqBuilder<T> {
 
     public Disq<T> build(boolean paused) {
         InternalQueue queue = buildInternalQueue();
-        queue.setPopPaused(paused);
+        queue.setPaused(paused);
 
         return new Disq<T>(threadFactory, threadCount, autoFlushMs,
                 buildSerializerPool(), processor, queue);
@@ -121,7 +115,7 @@ public class DisqBuilder<T> {
     }
 
     public DiskRawQueue buildRawQueue() {
-        return new DiskRawQueue(directory, maxSize, flushOnPop, flushOnPush, deleteOldestOnOverflow);
+        return new DiskRawQueue(directory, maxSize, flushOnPop, flushOnPush);
     }
 
 }

@@ -6,10 +6,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
@@ -68,7 +68,7 @@ public class PersistentQueueTest {
                 new SerializerPool<>(GsonSerializer.make(), 32, 1 << 16));
 
         for (int i = 0; i < 10; i++)
-            assertThat(queue.push("test" + i)).isTrue();
+            queue.push("test" + i);
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(5622);
@@ -80,7 +80,7 @@ public class PersistentQueueTest {
 
 
         for (int i = 10; i < 20; i++)
-            assertThat(queue.push("test" + i)).isTrue();
+            queue.push("test" + i);
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(0);
@@ -101,37 +101,15 @@ public class PersistentQueueTest {
     }
 
     @Test(timeout = 3000)
-    public void testBlockingWrite() throws Throwable {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(new InternalQueue(bq),
-                new SerializerPool<>(GsonSerializer.make(), 32, 1 << 16));
-
-        String s = Strings.repeat("a", 508);
-
-        WriterThread t1 = new WriterThread(queue, s);
-        t1.start();
-        while (t1.getState() != Thread.State.TIMED_WAITING) {
-            Thread.sleep(10);
-        }
-
-        ReaderThread t2 = new ReaderThread(queue, s);
-        t2.start();
-
-        t1.waitFinish();
-        t2.waitFinish();
-    }
-
-    @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true);
         PersistentQueue<Object> queue = new PersistentQueue<>(new InternalQueue(bq),
                 new SerializerPool<>(GsonSerializer.make(), 32, 1 << 16));
 
         String s = Strings.repeat("a", 506);
 
         for (int i = 0; i < 121; i++)
-            assertThat(queue.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isTrue();
-        assertThat(queue.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isFalse();
+            queue.push(s);
 
         for (int i = 0; i < 121; i++)
             assertThat(queue.blockingPop(10, TimeUnit.MILLISECONDS)).isEqualTo(s);
@@ -140,9 +118,10 @@ public class PersistentQueueTest {
 
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000, true, true);
         PersistentQueue<Object> queue = new PersistentQueue<>(new InternalQueue(bq),
                 new SerializerPool<>(GsonSerializer.make(), 32, 1 << 16));
+        queue.setPaused(true);
 
         String s = Strings.repeat("a", 508);
 
@@ -154,42 +133,12 @@ public class PersistentQueueTest {
 
         WriterThread t1 = new WriterThread(queue, s);
         t1.start();
-
         t1.waitFinish();
-        t2.waitFinish();
-    }
 
-    @Test(timeout = 3000)
-    public void testBlockingBoth() throws Throwable {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        PersistentQueue<Object> queue = new PersistentQueue<>(new InternalQueue(bq),
-                new SerializerPool<>(GsonSerializer.make(), 32, 1 << 16));
-        queue.setPopPaused(true);
-        queue.setPushPaused(true);
+        assertThat(queue.count()).isEqualTo(200);
 
-        String s = Strings.repeat("a", 502);
+        queue.setPaused(false);
 
-        ReaderThread t2 = new ReaderThread(queue, s);
-        t2.start();
-
-        WriterThread t1 = new WriterThread(queue, s);
-        t1.start();
-
-        while (t1.getState() != Thread.State.TIMED_WAITING)
-            Thread.sleep(10);
-        while (t2.getState() != Thread.State.TIMED_WAITING)
-            Thread.sleep(10);
-
-        assertThat(queue.count()).isEqualTo(0);
-        queue.setPushPaused(false);
-        while (queue.count() < 121)
-            Thread.sleep(10);
-
-        queue.setPopPaused(false);
-        while (queue.count() > 0)
-            Thread.sleep(10);
-
-        t1.waitFinish();
         t2.waitFinish();
     }
 
@@ -220,7 +169,7 @@ public class PersistentQueueTest {
 
     @Test
     public void canAvoidFlush() throws Exception {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false);
         PersistentQueue<Object> queue = new PersistentQueue<>(new InternalQueue(bq),
                 new SerializerPool<>(GsonSerializer.make(), 32, 1 << 16));
 
@@ -241,7 +190,7 @@ public class PersistentQueueTest {
         doThrow(exc1).when(serializer).serialize(any(), any());
         doThrow(exc2).when(serializer).deserialize(any());
 
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false);
         bq.push(new Buffer());
 
         PersistentQueue<Object> queue = new PersistentQueue<>(new InternalQueue(bq),
@@ -287,7 +236,7 @@ public class PersistentQueueTest {
         @Override
         public void runThrowable() throws Exception {
             for (int i = 0; i < 200; i++) {
-                queue.blockingPush(s + i);
+                queue.push(s + i);
             }
         }
     }

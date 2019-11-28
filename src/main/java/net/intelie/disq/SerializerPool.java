@@ -39,10 +39,10 @@ public class SerializerPool<T> {
             this.ref.close();
         }
 
-        public boolean push(InternalQueue queue, T obj) throws IOException {
+        public void push(InternalQueue queue, T obj) throws IOException {
             buffer.clear();
             serializer.serialize(buffer, obj);
-            return queue.push(buffer);
+            queue.push(buffer);
         }
 
         public T pop(InternalQueue queue) throws IOException {
@@ -71,19 +71,6 @@ public class SerializerPool<T> {
                 return null;
             return serializer.deserialize(buffer);
         }
-
-        public void blockingPush(InternalQueue queue, T obj) throws InterruptedException, IOException {
-            buffer.clear();
-            serializer.serialize(buffer, obj);
-            queue.blockingPush(buffer);
-        }
-
-        public boolean blockingPush(InternalQueue queue, T obj, long amount, TimeUnit unit) throws InterruptedException, IOException {
-            buffer.clear();
-            serializer.serialize(buffer, obj);
-            return queue.blockingPush(buffer, amount, unit);
-        }
-
 
         public Buffer buffer() {
             return buffer;

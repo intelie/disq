@@ -22,7 +22,7 @@ public interface RawQueue extends Closeable {
 
     boolean peek(Buffer buffer) throws IOException;
 
-    boolean push(Buffer buffer) throws IOException;
+    void push(Buffer buffer) throws IOException;
 
     void flush() throws IOException;
 

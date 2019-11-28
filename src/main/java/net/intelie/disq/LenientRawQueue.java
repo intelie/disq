@@ -37,7 +37,10 @@ public class LenientRawQueue implements RawQueue {
         };
         this.pop = x -> queue.pop(x) ? 1 : 0;
         this.peek = x -> queue.peek(x) ? 1 : 0;
-        this.push = x -> queue.push(x) ? 1 : 0;
+        this.push = x -> {
+            queue.push(x);
+            return 1;
+        };
         this.flush = x -> {
             queue.flush();
             return 1;
@@ -95,8 +98,8 @@ public class LenientRawQueue implements RawQueue {
     }
 
     @Override
-    public boolean push(Buffer buffer) throws IOException {
-        return Lenient.perform(queue, buffer, push) > 0;
+    public void push(Buffer buffer) throws IOException {
+        Lenient.perform(queue, buffer, push);
     }
 
     @Override

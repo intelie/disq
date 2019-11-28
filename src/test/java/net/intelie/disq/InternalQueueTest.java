@@ -13,9 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 
 public class InternalQueueTest {
     @Rule
@@ -33,7 +30,7 @@ public class InternalQueueTest {
 
         //warmup
         for (int i = 0; i < 10000; i++) {
-            queue.blockingPush(buffer);
+            queue.push(buffer);
             queue.flush();
         }
         for (int i = 0; i < 10000; i++)
@@ -46,7 +43,7 @@ public class InternalQueueTest {
         ThreadResources.allocatedBytes(Thread.currentThread());
         long start = ThreadResources.allocatedBytes(Thread.currentThread());
         for (int i = 0; i < 10000; i++) {
-            queue.blockingPush(buffer);
+            queue.push(buffer);
             queue.flush();
         }
         for (int i = 0; i < 10000; i++)
@@ -56,7 +53,7 @@ public class InternalQueueTest {
             queue.flush();
         }
         for (int i = 0; i < 10000; i++) {
-            queue.blockingPush(buffer);
+            queue.push(buffer);
             queue.blockingPop(buffer2);
         }
 
@@ -106,7 +103,7 @@ public class InternalQueueTest {
         Adapter adapter = new Adapter(queue);
 
         for (int i = 0; i < 10; i++)
-            assertThat(adapter.push("test" + i)).isTrue();
+            adapter.push("test" + i);
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(5622);
@@ -118,7 +115,7 @@ public class InternalQueueTest {
 
 
         for (int i = 10; i < 20; i++)
-            assertThat(adapter.push("test" + i)).isTrue();
+            adapter.push("test" + i);
 
         assertThat(queue.count()).isEqualTo(10);
         assertThat(queue.remainingCount()).isEqualTo(0);
@@ -138,37 +135,17 @@ public class InternalQueueTest {
             assertThat(adapter.pop()).isEqualTo("test" + i);
     }
 
-    @Test//(timeout = 3000)
-    public void testBlockingWrite() throws Throwable {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        InternalQueue queue = new InternalQueue(bq, 1 << 16);
-
-        String s = Strings.repeat("a", 508);
-
-        WriterThread t1 = new WriterThread(queue, s);
-        t1.start();
-        while (t1.getState() != Thread.State.TIMED_WAITING) {
-            Thread.sleep(10);
-        }
-
-        ReaderThread t2 = new ReaderThread(queue, s);
-        t2.start();
-
-        t1.waitFinish();
-        t2.waitFinish();
-    }
 
     @Test(timeout = 3000)
     public void testBlockingTimeout() throws Exception {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true);
         InternalQueue queue = new InternalQueue(bq, 1 << 16);
         Adapter adapter = new Adapter(queue);
 
         String s = Strings.repeat("a", 506);
 
         for (int i = 0; i < 121; i++)
-            assertThat(adapter.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isTrue();
-        assertThat(adapter.blockingPush(s, 10, TimeUnit.MILLISECONDS)).isFalse();
+            adapter.push(s);
 
         for (int i = 0; i < 121; i++)
             assertThat(adapter.blockingPop(10, TimeUnit.MILLISECONDS)).isEqualTo(s);
@@ -177,12 +154,13 @@ public class InternalQueueTest {
 
     @Test(timeout = 3000)
     public void testBlockingRead() throws Throwable {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000000, true, true);
         InternalQueue queue = new InternalQueue(bq, 1 << 16);
+        queue.setPaused(true);
 
-        String s = Strings.repeat("a", 508);
+        String s = Strings.repeat("a", 9900);
 
-        ReaderThread t2 = new ReaderThread(queue, s);
+        ReaderThread t2 = new ReaderThread(queue, s, 100, 200);
         t2.start();
         while (t2.getState() != Thread.State.TIMED_WAITING) {
             Thread.sleep(10);
@@ -192,39 +170,10 @@ public class InternalQueueTest {
         t1.start();
 
         t1.waitFinish();
-        t2.waitFinish();
-    }
 
-    @Test(timeout = 3000)
-    public void testBlockingBoth() throws Throwable {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, true, true, false);
-        InternalQueue queue = new InternalQueue(bq, 1 << 16);
-        queue.setPopPaused(true);
-        queue.setPushPaused(true);
+        assertThat(queue.count()).isEqualTo(100);
+        queue.setPaused(false);
 
-        String s = Strings.repeat("a", 502);
-
-        ReaderThread t2 = new ReaderThread(queue, s);
-        t2.start();
-
-        WriterThread t1 = new WriterThread(queue, s);
-        t1.start();
-
-        while (t1.getState() != Thread.State.TIMED_WAITING)
-            Thread.sleep(10);
-        while (t2.getState() != Thread.State.TIMED_WAITING)
-            Thread.sleep(10);
-
-        assertThat(queue.count()).isEqualTo(0);
-        queue.setPushPaused(false);
-        while (queue.count() < 121)
-            Thread.sleep(10);
-
-        queue.setPopPaused(false);
-        while (queue.count() > 0)
-            Thread.sleep(10);
-
-        t1.waitFinish();
         t2.waitFinish();
     }
 
@@ -255,7 +204,7 @@ public class InternalQueueTest {
 
     @Test
     public void canAvoidFlush() throws Exception {
-        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false, false);
+        DiskRawQueue bq = new DiskRawQueue(temp.getRoot().toPath(), 1000, false, false);
         InternalQueue queue = new InternalQueue(bq, 1 << 16);
         Adapter adapter = new Adapter(queue);
 
@@ -302,7 +251,7 @@ public class InternalQueueTest {
         @Override
         public void runThrowable() throws Exception {
             for (int i = 0; i < 200; i++) {
-                queue.blockingPush(s + i);
+                queue.push(s + i);
             }
         }
     }
@@ -310,16 +259,20 @@ public class InternalQueueTest {
     private static class ReaderThread extends ThrowableThread {
         private final Adapter queue;
         private final String s;
+        private final int from;
+        private final int to;
 
-        public ReaderThread(InternalQueue queue, String s) {
+        public ReaderThread(InternalQueue queue, String s, int from, int to) {
             this.queue = new Adapter(queue);
             this.s = s;
+            this.from = from;
+            this.to = to;
             this.setName("READER");
         }
 
         @Override
         public void runThrowable() throws Throwable {
-            for (int i = 0; i < 200; i++) {
+            for (int i = from; i < to; i++) {
                 String popped = queue.blockingPop();
                 assertThat(popped).isEqualTo(s + i);
             }
@@ -336,9 +289,9 @@ public class InternalQueueTest {
             this.queue = queue;
         }
 
-        public boolean push(String s) throws IOException {
+        public void push(String s) throws IOException {
             try (SerializerPool<String>.Slot slot = pool.acquire()) {
-                return slot.push(queue, s);
+                slot.push(queue, s);
             }
         }
 
@@ -348,21 +301,9 @@ public class InternalQueueTest {
             }
         }
 
-        public void blockingPush(String s) throws InterruptedException, IOException {
-            try (SerializerPool<String>.Slot slot = pool.acquire()) {
-                slot.blockingPush(queue, s);
-            }
-        }
-
         public String blockingPop() throws InterruptedException, IOException {
             try (SerializerPool<String>.Slot slot = pool.acquire()) {
                 return slot.blockingPop(queue);
-            }
-        }
-
-        public boolean blockingPush(String s, long amount, TimeUnit unit) throws InterruptedException, IOException {
-            try (SerializerPool<String>.Slot slot = pool.acquire()) {
-                return slot.blockingPush(queue, s, amount, unit);
             }
         }
 

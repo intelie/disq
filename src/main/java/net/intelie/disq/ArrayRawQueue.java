@@ -4,12 +4,10 @@ import java.io.IOException;
 
 public class ArrayRawQueue implements RawQueue {
     private final byte[] memory;
-    private final boolean deleteOldestOnOverflow;
     private int begin = 0, bytes = 0, count = 0;
 
-    public ArrayRawQueue(int maxSize, boolean deleteOldestOnOverflow) {
+    public ArrayRawQueue(int maxSize) {
         this.memory = new byte[maxSize];
-        this.deleteOldestOnOverflow = deleteOldestOnOverflow;
     }
 
     @Override
@@ -75,16 +73,15 @@ public class ArrayRawQueue implements RawQueue {
     }
 
     @Override
-    public synchronized boolean push(Buffer buffer) {
+    public synchronized void push(Buffer buffer) {
         int size = buffer.count();
-        if (size + 4 > memory.length) return false;
-        while (deleteOldestOnOverflow && this.bytes + size + 4 > memory.length) {
+        while (count > 0 && this.bytes + size + 4 > memory.length) {
             int oldSize = readInt();
             begin = (begin + 4 + oldSize) % memory.length;
             bytes -= 4 + oldSize;
             count--;
         }
-        if (this.bytes + size + 4 > memory.length) return false;
+        if (this.bytes + size + 4 > memory.length) return;
 
         writeInt(size);
         int myBegin = (begin + this.bytes + 4) % memory.length;
@@ -95,8 +92,6 @@ public class ArrayRawQueue implements RawQueue {
 
         bytes += 4 + buffer.count();
         count++;
-
-        return true;
     }
 
     @Override

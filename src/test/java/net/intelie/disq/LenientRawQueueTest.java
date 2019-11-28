@@ -225,8 +225,8 @@ public class LenientRawQueueTest {
         assertThat(queue.count()).isEqualTo(count);
     }
 
-    private boolean push(LenientRawQueue queue, String s) throws IOException {
-        return queue.push(new Buffer(s.getBytes()));
+    private void push(LenientRawQueue queue, String s) throws IOException {
+        queue.push(new Buffer(s.getBytes()));
     }
 
     private String pop(LenientRawQueue queue) throws IOException {

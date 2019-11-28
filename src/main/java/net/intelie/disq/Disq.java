@@ -70,17 +70,19 @@ public class Disq<T> implements AutoCloseable {
     }
 
     public boolean submit(T obj) throws IOException {
+        if (!open.get()) return false;
         try (SerializerPool<T>.Slot slot = serializerPool.acquire()) {
-            return open.get() && slot.push(queue, obj);
+            slot.push(queue, obj);
         }
+        return true;
     }
 
     public void pause() {
-        queue.setPopPaused(true);
+        queue.setPaused(true);
     }
 
     public void resume() {
-        queue.setPopPaused(false);
+        queue.setPaused(false);
     }
 
     public void clear() throws IOException {
@@ -95,7 +97,6 @@ public class Disq<T> implements AutoCloseable {
     public void close() throws InterruptedException {
         if (!open.getAndSet(false))
             return;
-        queue.setPushPaused(true);
         try {
             for (int i = 0; i < threads.size(); i++) {
                 synchronized (locks.get(i)) {

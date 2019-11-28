@@ -66,8 +66,8 @@ public class DiskQueueReaderTest {
         }
     }
 
-    private boolean push(DiskRawQueue queue, String s) throws IOException {
-        return queue.push(new Buffer(s.getBytes(StandardCharsets.UTF_8)));
+    private void push(DiskRawQueue queue, String s) throws IOException {
+        queue.push(new Buffer(s.getBytes(StandardCharsets.UTF_8)));
     }
 
     private String pop(DiskRawQueue queue) throws IOException {

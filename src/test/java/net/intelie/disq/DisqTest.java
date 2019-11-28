@@ -89,8 +89,8 @@ public class DisqTest {
             disq.submit("test2");
             disq.submit("test3");
 
-            assertThat(disq.count()).isEqualTo(3);
             verifyZeroInteractions(processor);
+            assertThat(disq.count()).isEqualTo(3);
 
             disq.resume();
 
@@ -125,7 +125,6 @@ public class DisqTest {
         Path saved = null;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
-                .setDeleteOldestOnOverflow(false)
                 .setSerializer(new StringSerializer())
                 .setDirectory(temp.getRoot().toPath())
                 .build()) {
@@ -151,8 +150,8 @@ public class DisqTest {
         }
 
         InOrder ordered = inOrder(processor);
-        ordered.verify(processor).process(s + "1");
         ordered.verify(processor).process(s + "2");
+        ordered.verify(processor).process(s + "3");
         ordered.verifyNoMoreInteractions();
 
 
@@ -197,7 +196,6 @@ public class DisqTest {
                 .setDirectory(temp.getRoot().getAbsolutePath())
                 .setFlushOnPop(false)
                 .setFlushOnPush(false)
-                .setDeleteOldestOnOverflow(true)
                 .build()) {
             disq.pause();
             disq.submit(s + "1");
