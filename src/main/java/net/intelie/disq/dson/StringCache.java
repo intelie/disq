@@ -3,19 +3,19 @@ package net.intelie.disq.dson;
 public class StringCache {
     public static final String EMPTY = "";
     private final int bucketCount;
-    private final int bucketSize;
     private final int maxStringLength;
     private final String[] cache;
 
     public StringCache() {
-        this(2048, 4, 1024);
+        this(8192, 1024);
     }
 
-    public StringCache(int bucketCount, int bucketSize, int maxStringLength) {
+    public StringCache(int bucketCount, int maxStringLength) {
+        if (Integer.bitCount(bucketCount) != 1)
+            throw new IllegalArgumentException("bucketCount must be a power of two");
         this.bucketCount = bucketCount;
-        this.bucketSize = bucketSize;
         this.maxStringLength = maxStringLength;
-        this.cache = new String[bucketCount * bucketSize];
+        this.cache = new String[bucketCount];
     }
 
     public String get(CharSequence cs) {
@@ -25,14 +25,11 @@ public class StringCache {
         if (length > maxStringLength) return cs.toString();
 
         int hash = hash(cs, length);
-        int n = Math.abs(hash % bucketCount) * bucketSize;
+        int n = hash & (bucketCount - 1);
         String cached = cache[n];
         if (eq(cached, cs, hash))
             return cached;
-        for (int k = 1; k < bucketSize; k++)
-            if (eq(cached = cache[n + k], cs, hash))
-                return finish(cached, n, k);
-        return finish(cs.toString(), n, bucketSize - 1);
+        return cache[n] = cs.toString();
     }
 
     private int hash(CharSequence cs, int length) {
@@ -42,13 +39,6 @@ public class StringCache {
         return hash;
     }
 
-
-    private String finish(String cached, int n, int k) {
-        for (int i = n + k; i > n; i--)
-            cache[i] = cache[i - 1];
-        cache[n] = cached;
-        return cached;
-    }
 
     private static boolean eq(String cached, CharSequence cs, int hash) {
         if (cached == null || cached.hashCode() != hash)

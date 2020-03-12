@@ -8,11 +8,12 @@ import net.intelie.introspective.ThreadResources;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Date;
+import java.util.Map;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        try (DiskQueueReader queue = new DiskQueueReader(Paths.get("/home/juanplopes/Downloads/queue"))) {
+        try (DiskQueueReader queue = new DiskQueueReader(Paths.get("/home/juanplopes/Downloads/queue/hess"))) {
             System.out.println(queue.count());
 
             Buffer buffer = new Buffer();

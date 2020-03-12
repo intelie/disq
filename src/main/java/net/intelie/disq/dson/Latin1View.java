@@ -1,11 +1,17 @@
 package net.intelie.disq.dson;
 
-public class Latin1View implements CharSequence {
+public class Latin1View implements StringView {
     private StringBuilder builder;
     private byte[] buf;
     private int start;
     private int length;
 
+    @Override
+    public void clear() {
+        buf = null;
+    }
+
+    @Override
     public void set(byte[] buf, int start, int length) {
         this.buf = buf;
         this.start = start;

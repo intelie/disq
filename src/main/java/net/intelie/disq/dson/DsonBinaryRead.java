@@ -3,13 +3,13 @@ package net.intelie.disq.dson;
 import net.intelie.disq.Buffer;
 
 public abstract class DsonBinaryRead {
-    public static void readUnicode(Buffer.InStream stream, UnicodeView view) {
+    public static void readUnicode(Buffer.InStream stream, StringView view) {
         int len = readCount(stream);
         view.set(stream.buf(), stream.position(), len);
         stream.position(stream.position() + len * 2);
     }
 
-    public static void readLatin1(Buffer.InStream stream, Latin1View view) {
+    public static void readLatin1(Buffer.InStream stream, StringView view) {
         int len = readCount(stream);
         view.set(stream.buf(), stream.position(), len);
         stream.position(stream.position() + len);

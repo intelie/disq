@@ -117,7 +117,7 @@ public class DsonSerializer implements SerializerFactory<Object> {
                 case STRING:
                     DsonBinaryRead.readUnicode(stream, unicodeView);
                     String unicodeStr = getString(forKey, unicodeView);
-                    unicodeView.set(null, 0, 0);
+                    unicodeView.clear();
                     return unicodeStr;
                 case OBJECT:
                     int objectSize = DsonBinaryRead.readCount(stream);
@@ -137,7 +137,7 @@ public class DsonSerializer implements SerializerFactory<Object> {
                 case STRING_LATIN1:
                     DsonBinaryRead.readLatin1(stream, latin1View);
                     String latin1Str = getString(forKey, latin1View);
-                    latin1View.set(null, 0, 0);
+                    latin1View.clear();
                     return latin1Str;
                 case BOOLEAN:
                     return DsonBinaryRead.readBoolean(stream);
