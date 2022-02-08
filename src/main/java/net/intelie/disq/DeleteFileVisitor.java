@@ -29,7 +29,7 @@ public class DeleteFileVisitor extends SimpleFileVisitor<Path> {
         try {
             Files.delete(dir);
         } catch (Exception e) {
-            LOGGER.info("Cound not delete {}: {}", dir, e.getMessage());
+            LOGGER.info("Could not delete {}: {}", dir, e.getMessage());
             LOGGER.debug("Stacktrace", e);
         }
     }

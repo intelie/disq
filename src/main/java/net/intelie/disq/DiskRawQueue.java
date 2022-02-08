@@ -325,8 +325,8 @@ public class DiskRawQueue implements RawQueue {
                 Files.delete(from);
             }
         } catch (Exception e) {
-            LOGGER.info("Unable to delete file {}", from);
-            LOGGER.info("Stacktrace", e);
+            LOGGER.info("Unable to delete file {}: {}", from, e.getMessage());
+            LOGGER.debug("Stacktrace", e);
         }
     }
 
