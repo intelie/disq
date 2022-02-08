@@ -35,7 +35,7 @@ public class DisqTest {
             disq.submit("test3");
 
             assertThat(disq.count()).isEqualTo(3);
-            verifyZeroInteractions(processor);
+            verifyNoInteractions(processor);
 
             disq.resume();
 
@@ -89,7 +89,7 @@ public class DisqTest {
             disq.submit("test2");
             disq.submit("test3");
 
-            verifyZeroInteractions(processor);
+            verifyNoInteractions(processor);
             assertThat(disq.count()).isEqualTo(3);
 
             disq.resume();
@@ -138,7 +138,7 @@ public class DisqTest {
             assertThat(disq.bytes()).isEqualTo(StateFile.MIN_QUEUE_SIZE);
             assertThat(disq.remainingBytes()).isEqualTo(0);
             assertThat(disq.count()).isEqualTo(2);
-            verifyZeroInteractions(processor);
+            verifyNoInteractions(processor);
 
             disq.resume();
 
@@ -206,7 +206,7 @@ public class DisqTest {
             assertThat(disq.bytes()).isEqualTo(37170L);
             assertThat(disq.remainingBytes()).isEqualTo(StateFile.MIN_QUEUE_SIZE - disq.bytes());
             assertThat(disq.count()).isEqualTo(3);
-            verifyZeroInteractions(processor);
+            verifyNoInteractions(processor);
         }
 
         try (Disq<String> disq = Disq.builder(processor)
