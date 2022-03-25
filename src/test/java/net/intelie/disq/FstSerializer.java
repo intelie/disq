@@ -1,14 +1,10 @@
 package net.intelie.disq;
 
-import com.google.gson.internal.LinkedHashTreeMap;
-import com.google.gson.internal.LinkedTreeMap;
 import org.nustaq.serialization.FSTConfiguration;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
-import org.nustaq.serialization.serializers.FSTMapSerializer;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 
 public class FstSerializer implements SerializerFactory<Object> {
     @Override
@@ -46,12 +42,6 @@ public class FstSerializer implements SerializerFactory<Object> {
     private static FSTConfiguration newFSTConfiguration() {
         FSTConfiguration fstConfiguration = FSTConfiguration.createDefaultConfiguration();
         fstConfiguration.setShareReferences(false);
-
-        // Workaround for https://github.com/RuedigerMoeller/fast-serialization/issues/204
-        fstConfiguration.registerSerializer(LinkedTreeMap.class, new FSTMapSerializer(), true);
-        fstConfiguration.registerSerializer(LinkedHashTreeMap.class, new FSTMapSerializer(), true);
-        fstConfiguration.registerClass(LinkedTreeMap.class, LinkedHashTreeMap.class);
-
         return fstConfiguration;
     }
 }
