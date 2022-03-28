@@ -1,7 +1,6 @@
 package net.intelie.disq;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import net.intelie.disq.dson.DsonBinaryRead;
 import net.intelie.disq.dson.DsonSerializer;
 import net.intelie.disq.dson.Latin1View;
@@ -11,9 +10,10 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.assertj.core.api.Java6Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class AllocationsTest {
     @Test
@@ -134,7 +134,7 @@ public class AllocationsTest {
         }
     }
 
-    private class MyFactory implements java.util.concurrent.ThreadFactory {
+    private static class MyFactory implements ThreadFactory {
         private final List<Thread> threads = new ArrayList<>();
 
         @Override

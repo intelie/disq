@@ -9,7 +9,7 @@ import java.io.OutputStreamWriter;
 
 public class GsonSerializer<T> implements SerializerFactory<T> {
     private final Gson gson = new GsonBuilder().serializeNulls().create();
-    private Class<T> clazz;
+    private final Class<T> clazz;
 
     public GsonSerializer(Class<T> clazz) {
         this.clazz = clazz;

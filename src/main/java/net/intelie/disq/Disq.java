@@ -46,11 +46,11 @@ public class Disq<T> implements AutoCloseable {
     }
 
     public static <T> DisqBuilder<T> builder() {
-        return new DisqBuilder<T>(null);
+        return new DisqBuilder<>(null);
     }
 
     public static <T> DisqBuilder<T> builder(Processor<T> processor) {
-        return new DisqBuilder<T>(processor);
+        return new DisqBuilder<>(processor);
     }
 
     public InternalQueue queue() {

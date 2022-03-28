@@ -22,7 +22,7 @@ public class StateFile implements Closeable {
     private int readPosition, writePosition;
     private long count;
     private long bytes;
-    private int[] fileCounts;
+    private final int[] fileCounts;
     private long unflushed;
     private boolean dirty;
 

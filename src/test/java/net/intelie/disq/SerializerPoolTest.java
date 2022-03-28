@@ -80,7 +80,7 @@ public class SerializerPoolTest {
         }
     }
 
-    class MySerializer implements SerializerFactory<Object> {
+    static class MySerializer implements SerializerFactory<Object> {
         AtomicInteger count = new AtomicInteger(0);
 
         @Override

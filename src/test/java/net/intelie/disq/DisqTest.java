@@ -26,7 +26,7 @@ public class DisqTest {
     @Test
     public void testTempPersistentQueue() throws Exception {
         Processor<Object> processor = mock(Processor.class);
-        Path saved = null;
+        Path saved;
         try (Disq<Object> disq = Disq.builder(processor).build(true)) {
             assertThat(disq.queue().fallbackQueue().remainingBytes()).isEqualTo(0);
 
@@ -81,7 +81,7 @@ public class DisqTest {
     public void testExceptionOnProcessor() throws Exception {
         Processor<Object> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(any());
-        Path saved = null;
+        Path saved;
         try (Disq<Object> disq = Disq.builder(processor).build(true)) {
             assertThat(disq.queue().fallbackQueue().remainingBytes()).isEqualTo(0);
 
@@ -122,7 +122,7 @@ public class DisqTest {
         Processor<String> processor = mock(Processor.class);
         String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
 
-        Path saved = null;
+        Path saved;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
                 .setSerializer(new StringSerializer())
@@ -189,7 +189,7 @@ public class DisqTest {
         Processor<String> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(anyString());
 
-        Path saved = null;
+        Path saved;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
                 .setSerializer(new StringSerializer())
@@ -247,9 +247,7 @@ public class DisqTest {
             assertThat(slot.buffer().currentCapacity()).isEqualTo(100);
         }
 
-        assertThatThrownBy(() -> {
-            queue.push(s);
-        })
+        assertThatThrownBy(() -> queue.push(s))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Buffer overflowed")
                 .hasMessageContaining("1001/1000");

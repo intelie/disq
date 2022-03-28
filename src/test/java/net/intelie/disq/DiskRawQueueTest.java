@@ -1,16 +1,17 @@
 package net.intelie.disq;
 
 import com.google.common.base.Strings;
-import net.intelie.introspective.ThreadResources;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,9 +31,9 @@ public class DiskRawQueueTest {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
         queue.close();
 
-        assertThatThrownBy(() -> {
-            push(queue, "abc");
-        }).isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
+        assertThatThrownBy(() -> push(queue, "abc"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("closed");
     }
 
     @Test
@@ -44,9 +45,9 @@ public class DiskRawQueueTest {
         temp.getRoot().delete();
         queue.close();
 
-        assertThatThrownBy(() -> {
-            push(queue, "abc");
-        }).isInstanceOf(IllegalStateException.class).hasMessageContaining("closed");
+        assertThatThrownBy(() -> push(queue, "abc"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("closed");
     }
 
     @Test
