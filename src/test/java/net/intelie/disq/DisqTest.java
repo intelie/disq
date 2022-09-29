@@ -25,6 +25,7 @@ public class DisqTest {
 
     @Test
     public void testTempPersistentQueue() throws Exception {
+        @SuppressWarnings("unchecked")
         Processor<Object> processor = mock(Processor.class);
         Path saved;
         try (Disq<Object> disq = Disq.builder(processor).build(true)) {
@@ -58,6 +59,7 @@ public class DisqTest {
 
     @Test
     public void testAutoFlushWillFlushPredictable() throws Exception {
+        @SuppressWarnings("unchecked")
         Processor<Object> processor = mock(Processor.class);
         try (Disq<Object> disq = Disq.builder(processor).setAutoFlushMs(50)
                 .setFlushOnPop(false)
@@ -79,6 +81,7 @@ public class DisqTest {
 
     @Test
     public void testExceptionOnProcessor() throws Exception {
+        @SuppressWarnings("unchecked")
         Processor<Object> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(any());
         Path saved;
@@ -111,6 +114,7 @@ public class DisqTest {
 
     @Test
     public void testTempPersistentQueueFallbackSize() throws Exception {
+        @SuppressWarnings("unchecked")
         Processor<Object> processor = mock(Processor.class);
         try (Disq<Object> disq = Disq.builder(processor).setFallbackBufferCapacity(1024).build(true)) {
             assertThat(disq.queue().fallbackQueue().remainingBytes()).isEqualTo(1024);
@@ -119,6 +123,7 @@ public class DisqTest {
 
     @Test
     public void testSpecificPathLimitedQueue() throws Exception {
+        @SuppressWarnings("unchecked")
         Processor<String> processor = mock(Processor.class);
         String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 2 - 5);
 
@@ -160,10 +165,10 @@ public class DisqTest {
 
     @Test
     public void testClearAndFlush() throws Exception {
+        @SuppressWarnings("unchecked")
         Processor<String> processor = mock(Processor.class);
         String s = Strings.repeat("a", 20);
 
-        Path saved = null;
         try (Disq<String> disq = Disq.builder(processor)
                 .setMaxSize(StateFile.MIN_QUEUE_SIZE)
                 .setSerializer(new StringSerializer())
@@ -186,6 +191,7 @@ public class DisqTest {
     public void testSpecificPathCompressedueueReopening() throws Exception {
         String s = Strings.repeat("a", (int) StateFile.MIN_QUEUE_SIZE / 5 - 5);
 
+        @SuppressWarnings("unchecked")
         Processor<String> processor = mock(Processor.class);
         doThrow(new Error()).when(processor).process(anyString());
 

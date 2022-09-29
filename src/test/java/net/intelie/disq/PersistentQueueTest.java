@@ -184,6 +184,7 @@ public class PersistentQueueTest {
     public void serializerException() throws Exception {
         RuntimeException exc1 = new RuntimeException();
         RuntimeException exc2 = new RuntimeException();
+        @SuppressWarnings("unchecked")
         SerializerFactory<Object> factory = mock(SerializerFactory.class, RETURNS_DEEP_STUBS);
         Serializer<Object> serializer = factory.create();
         doThrow(exc1).when(serializer).serialize(any(), any());

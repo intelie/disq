@@ -21,7 +21,7 @@ public class Main {
 
             try (BufferedWriter writer = new BufferedWriter(new FileWriter("/home/juanplopes/Downloads/queue.txt"))) {
                 while (queue.moveNext(buffer)) {
-                    Map event = (Map) serializer.deserialize(buffer);
+                    Map<?, ?> event = (Map<?, ?>) serializer.deserialize(buffer);
                     writer.write(event.toString());
                     writer.write('\n');
                     System.out.println(event.get("__type") + " " + new Date(((Number) event.get("timestamp")).longValue()));
@@ -30,7 +30,7 @@ public class Main {
         }
 
 
-        //        Map map2 = new LinkedHashMap<>(new Gson().fromJson(
+        //        Map<?, ?> map2 = new LinkedHashMap<>(new Gson().fromJson(
 //                "{\"index_timestamp\":1.56294378011E12,\"wellbore_name\":\"1\",\"adjusted_index_timestamp\":1.562943817363E12,\"source\":\"WITS\",\"depth_value\":6717.527,\"uom\":\"unitless\",\"extra\":\"RBNvo1WzZ4o\",\"mnemonic\":\"STKNUM\",\"well_name\":\"MP72 – A11 ST\",\"depth_mnemonic\":\"DEPTMEAS\",\"value\":0.0,\"errors\":[\"missing_src_unit\",\"unknown_src_unit\"],\"timestamp\":1.562943818361E12,\"__type\":\"ensco75\",\"__src\":\"replay/rig11_b\"}",
 //                Map.class));
 //
@@ -54,7 +54,7 @@ public class Main {
 
     }
 
-    private static void benchmark(Map map2, SerializerFactory<Object> serializer) throws IOException {
+    private static void benchmark(Map<?, ?> map2, SerializerFactory<Object> serializer) throws IOException {
         try (PersistentQueue<Object> q = Disq.builder()
                 .setFlushOnPop(false)
                 .setFlushOnPush(false)
@@ -122,8 +122,7 @@ public class Main {
                     try (Buffer.InStream stream = buffer.read()) {
                         int retries = DsonBinaryRead.readInt32(stream);
 
-                        Object o = instance.deserialize(stream);
-                        return o;
+                        return instance.deserialize(stream);
                     }
                 }
 
@@ -133,8 +132,7 @@ public class Main {
                     int retries = dataStream.readInt();
 
                     try (InputStreamReader reader = new InputStreamReader(read, StandardCharsets.UTF_8)) {
-                        Map map = gson.fromJson(reader, Map.class);
-                        return map;
+                        return gson.fromJson(reader, Map.class);
                     }
                 }
             };

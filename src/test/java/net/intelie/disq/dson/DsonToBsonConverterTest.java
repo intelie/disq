@@ -65,7 +65,7 @@ public class DsonToBsonConverterTest {
 
     @Test
     public void testSimpleNonMapObject() {
-        Map<Object, Object> expected = new LinkedHashMap<>();
+        Map<String, Object> expected = new LinkedHashMap<>();
         expected.put("value", 123.0);
 
         assertConversion(123.0, expected, makeControl(expected));
@@ -73,7 +73,7 @@ public class DsonToBsonConverterTest {
 
     @Test
     public void testSimple() {
-        Map<Object, Object> map = new LinkedHashMap<>();
+        Map<String, Object> map = new LinkedHashMap<>();
         map.put("aaa", 123.0);
         map.put("bbb", true);
 
@@ -82,7 +82,7 @@ public class DsonToBsonConverterTest {
 
     @Test
     public void testComplexInsideObject() {
-        Map<Object, Object> map = new LinkedHashMap<>();
+        Map<String, Object> map = new LinkedHashMap<>();
         map.put("aaa", Collections.singletonMap("bbb", 123.0));
         map.put("ccc", Arrays.asList("ddd", false));
 
@@ -101,7 +101,7 @@ public class DsonToBsonConverterTest {
                 Collections.singletonMap("fff", new Error("(╯°□°)╯︵ ┻━┻"))
         ));
 
-        Map<Object, Object> expected = new LinkedHashMap<>();
+        Map<String, Object> expected = new LinkedHashMap<>();
         expected.put("111.0", "bbb");
         expected.put("âçãó", true);
         expected.put("ccc", null);
@@ -123,18 +123,18 @@ public class DsonToBsonConverterTest {
         Map<Object, Object> map = new LinkedHashMap<>();
         map.put(key, key);
 
-        Map<Object, Object> expectedKey = new LinkedHashMap<>();
+        Map<String, Object> expectedKey = new LinkedHashMap<>();
         expectedKey.put("aaa", 123.0);
         expectedKey.put("", true);
         expectedKey.put("false", Arrays.asList(null, "(╯°□°)╯︵ ┻━┻\uD800\uDF48", 456.0));
 
-        Map<Object, Object> expected = new LinkedHashMap<>();
+        Map<String, Object> expected = new LinkedHashMap<>();
         expected.put("aaa123.0truefalse(╯°□°)╯︵ ┻━┻𐍈456.0", expectedKey);
 
         assertConversion(map, expected, null);
     }
 
-    private void assertConversion(Object input, Map<Object, Object> expected, byte[] control) {
+    private void assertConversion(Object input, Map<String, Object> expected, byte[] control) {
         Buffer in = new Buffer();
         Buffer out = new Buffer();
 
@@ -146,12 +146,12 @@ public class DsonToBsonConverterTest {
 
         if (control != null)
             assertThat(out.toArray()).isEqualTo(control);
-        Map decoded = codec.decode(new BsonBinaryReader(ByteBuffer.wrap(out.buf(), 0, out.count())), DecoderContext.builder().build());
+        Map<?, ?> decoded = codec.decode(new BsonBinaryReader(ByteBuffer.wrap(out.buf(), 0, out.count())), DecoderContext.builder().build());
 
         assertThat(decoded).isEqualTo(expected);
     }
 
-    private byte[] makeControl(Map input) {
+    private byte[] makeControl(Map<String, Object> input) {
         BasicOutputBuffer controlBuffer = new BasicOutputBuffer();
         codec.encode(new BsonBinaryWriter(controlBuffer), input, EncoderContext.builder().build());
         return controlBuffer.toByteArray();

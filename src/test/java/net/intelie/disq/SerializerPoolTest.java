@@ -81,7 +81,7 @@ public class SerializerPoolTest {
     }
 
     static class MySerializer implements SerializerFactory<Object> {
-        AtomicInteger count = new AtomicInteger(0);
+        final AtomicInteger count = new AtomicInteger(0);
 
         @Override
         public Serializer<Object> create() {
