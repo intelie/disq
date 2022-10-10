@@ -70,7 +70,7 @@ public class BufferTest {
     public void testWriteBigString() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
 
         String s = Strings.repeat("a", 511);
         stream.print(s);
@@ -81,7 +81,7 @@ public class BufferTest {
         stream.write('a');
         assertThat(buffer.count()).isEqualTo(513);
         assertThat(buffer.currentCapacity()).isEqualTo(1024);
-        assertThat(buffer.toArray()).isEqualTo((s + "aa").getBytes());
+        assertThat(buffer.toArray()).isEqualTo((s + "aa").getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -97,7 +97,7 @@ public class BufferTest {
     public void testWriteSmallString() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("aa");
 
         assertThat(buffer.currentCapacity()).isEqualTo(32);
@@ -123,7 +123,7 @@ public class BufferTest {
     @Test
     public void testExpandWithoutPreserving() throws Exception {
         Buffer buffer = new Buffer();
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         String s = Strings.repeat("a", 32);
         stream.print(s);
 
@@ -140,7 +140,7 @@ public class BufferTest {
     public void testWriteBigStringExact() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write(12));
+        PrintStream stream = new PrintStream(buffer.write(12), false, StandardCharsets.UTF_8.name());
 
         String s = Strings.repeat("a", 500);
         stream.print(s);
@@ -157,10 +157,10 @@ public class BufferTest {
     public void testReadEverything() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
-        assertThat(CharStreams.toString(new InputStreamReader(buffer.read()))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(buffer.read(), StandardCharsets.UTF_8))).isEqualTo(
                 "0123456789012345678901234567890123456789");
     }
 
@@ -168,28 +168,28 @@ public class BufferTest {
     public void testReadEverythingMarkReset() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
         InputStream read = buffer.read();
         assertThat(read.markSupported()).isTrue();
         read.mark(0);
 
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo(
                 "0123456789012345678901234567890123456789");
         read.reset();
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo(
                 "0123456789012345678901234567890123456789");
         read.reset();
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo(
                 "0123456789012345678901234567890123456789");
     }
 
     @Test
-    public void testReadAll() {
+    public void testReadAll() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
         byte[] bytes = new byte[100];
@@ -208,7 +208,7 @@ public class BufferTest {
     public void testMarkInMiddle() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
         Buffer.InStream read = buffer.read();
@@ -219,16 +219,16 @@ public class BufferTest {
         assertThat(read.marked()).isEqualTo(7);
         assertThat(read.position()).isEqualTo(7);
 
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo(
                 "789012345678901234567890123456789");
         assertThat(read.marked()).isEqualTo(7);
         assertThat(read.position()).isEqualTo(40);
 
         read.reset();
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo(
                 "789012345678901234567890123456789");
         read.reset();
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo(
                 "789012345678901234567890123456789");
     }
 
@@ -236,13 +236,13 @@ public class BufferTest {
     public void testClear() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
         InputStream read = buffer.read();
         buffer.clear();
 
-        assertThat(CharStreams.toString(new InputStreamReader(read))).isEqualTo("");
+        assertThat(CharStreams.toString(new InputStreamReader(read, StandardCharsets.UTF_8))).isEqualTo("");
     }
 
     @Test
@@ -250,7 +250,7 @@ public class BufferTest {
         Buffer buffer = new Buffer();
 
         OutputStream writeB = buffer.write();
-        PrintStream stream = new PrintStream(writeB);
+        PrintStream stream = new PrintStream(writeB, false, StandardCharsets.UTF_8.name());
         stream.print("012");
         stream.flush();
         writeB.write(0xC8);
@@ -261,17 +261,16 @@ public class BufferTest {
         assertThat(read.read()).isEqualTo('2');
         assertThat(read.read()).isEqualTo(200);
         assertThat(read.read()).isEqualTo(-1);
-
     }
 
     @Test
     public void testReadEverythingStarting() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
-        assertThat(CharStreams.toString(new InputStreamReader(buffer.read(12)))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(buffer.read(12), StandardCharsets.UTF_8))).isEqualTo(
                 "2345678901234567890123456789");
     }
 
@@ -279,12 +278,12 @@ public class BufferTest {
     public void testSkip() throws Exception {
         Buffer buffer = new Buffer();
 
-        PrintStream stream = new PrintStream(buffer.write());
+        PrintStream stream = new PrintStream(buffer.write(), false, StandardCharsets.UTF_8.name());
         stream.print("0123456789012345678901234567890123456789");
 
         InputStream input = buffer.read(12);
         assertThat(input.skip(13)).isEqualTo(13);
-        assertThat(CharStreams.toString(new InputStreamReader(input))).isEqualTo(
+        assertThat(CharStreams.toString(new InputStreamReader(input, StandardCharsets.UTF_8))).isEqualTo(
                 "567890123456789");
     }
 }

@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -55,7 +56,7 @@ public class DiskRawQueueTest {
         DiskRawQueue queue = new DiskRawQueue(temp.getRoot().toPath(), 1000);
 
         for (int i = 0; i < 20; i++) {
-            String s = "test" + String.format("%02x", i);
+            String s = "test" + String.format((Locale) null, "%02x", i);
 
             push(queue, s);
             assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo((i + 1) * 10);
@@ -73,7 +74,7 @@ public class DiskRawQueueTest {
             assertThat(queue.path()).isNull();
 
             for (int i = 0; i < 20; i++) {
-                String s = "test" + String.format("%02x", i);
+                String s = "test" + String.format((Locale) null, "%02x", i);
 
                 push(queue, s);
                 assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * 10);
@@ -96,7 +97,7 @@ public class DiskRawQueueTest {
             assertThat(queue.path()).isNull();
 
             for (int i = 0; i < 20; i++) {
-                String s = "test" + String.format("%02x", i);
+                String s = "test" + String.format((Locale) null, "%02x", i);
 
                 push(queue, s);
                 assertThat(new File(queue.path().toFile(), "data00").length()).isEqualTo((i + 1) * 10);
@@ -123,7 +124,7 @@ public class DiskRawQueueTest {
         queue.flush();
 
         for (int i = 0; i < 20; i++) {
-            String s = "test" + String.format("%02x", i);
+            String s = "test" + String.format((Locale) null, "%02x", i);
 
             push(queue, s);
             assertThat(new File(temp.getRoot(), "data00").length()).isEqualTo(10 * i);
@@ -358,12 +359,12 @@ public class DiskRawQueueTest {
     private String pop(DiskRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.pop(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 
     private String peek(DiskRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.peek(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 }

@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,6 +42,7 @@ public class AllocationsTest {
             map.put("abc", Collections.singletonMap(Strings.repeat("a", 2000), 72));
             map.put(55, 42.0);
 
+            AtomicReference<Exception> exception = new AtomicReference<>();
             Thread writer = writerThreads.newThread(() -> {
                 try {
                     sendSome(warmupCount, disq, map);
@@ -53,23 +55,29 @@ public class AllocationsTest {
                     readerBytes.set(readerThreads.totalAllocations() - readerStart);
                     writerBytes.set(writerThreads.totalAllocations() - writerStart);
                 } catch (IOException | InterruptedException e) {
-                    e.printStackTrace();
+                    exception.set(e);
                 }
 
             });
             writer.start();
             writer.join();
+            assertThat(exception.get()).isNull();
 
-            System.out.println("BUF. FLUSHES: " + ((DiskRawQueue) disq.queue().rawQueue()).flushCount());
-            System.out.println("READER BYTES: " + readerBytes.get());
-            System.out.println("WRITER BYTES: " + writerBytes.get());
-            System.out.println("OBJECT COUNT: " + totalCount.get());
+            printStats(disq, readerBytes, writerBytes, totalCount);
 
             assertThat(((DiskRawQueue) disq.queue().rawQueue()).flushCount()).isLessThan(10);
             assertThat(readerBytes.get() / (double) realCount).isLessThan(1);
             assertThat(writerBytes.get() / (double) realCount).isLessThan(1);
             assertThat(totalCount.get()).isEqualTo((warmupCount + realCount) * 7);
         }
+    }
+
+    @SuppressForbidden
+    private static void printStats(Disq<Object> disq, AtomicLong readerBytes, AtomicLong writerBytes, AtomicLong totalCount) {
+        System.out.println("BUF. FLUSHES: " + ((DiskRawQueue) disq.queue().rawQueue()).flushCount());
+        System.out.println("READER BYTES: " + readerBytes.get());
+        System.out.println("WRITER BYTES: " + writerBytes.get());
+        System.out.println("OBJECT COUNT: " + totalCount.get());
     }
 
     private void sendSome(int count, Disq<Object> disq, Object map) throws IOException, InterruptedException {

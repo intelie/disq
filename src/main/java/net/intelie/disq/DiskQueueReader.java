@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 public class DiskQueueReader implements Closeable {
     private final StateFile state;
@@ -39,7 +40,7 @@ public class DiskQueueReader implements Closeable {
     }
 
     private Path makeDataPath(int state) {
-        return directory.resolve(String.format("data%02x", state));
+        return directory.resolve(String.format((Locale) null, "data%02x", state));
     }
 
     private boolean checkReadEOF() throws IOException {

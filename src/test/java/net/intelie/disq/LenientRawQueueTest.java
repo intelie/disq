@@ -7,9 +7,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,7 +75,7 @@ public class LenientRawQueueTest {
         for (int i = 0; i < 5; i++)
             push(queue, s);
 
-        try (FileWriter writer = new FileWriter(new File(temp.getRoot(), "data00"))) {
+        try (Writer writer = Files.newBufferedWriter(new File(temp.getRoot(), "data00").toPath())) {
             writer.write("abcdeqwefwefwewefger");
         }
 
@@ -100,7 +101,7 @@ public class LenientRawQueueTest {
 
         push(queue, s);
 
-        try (FileWriter writer = new FileWriter(new File(temp.getRoot(), "data00"))) {
+        try (Writer writer = Files.newBufferedWriter(new File(temp.getRoot(), "data00").toPath())) {
             writer.write("abcdeqwefwefwewefger");
         }
 
@@ -132,7 +133,7 @@ public class LenientRawQueueTest {
             push(queue, s);
         }
 
-        try (FileWriter writer = new FileWriter(new File(temp.getRoot(), "data00"))) {
+        try (Writer writer = Files.newBufferedWriter(new File(temp.getRoot(), "data00").toPath())) {
             writer.write("abcdeqwefwefwewefger");
         }
 
@@ -225,19 +226,19 @@ public class LenientRawQueueTest {
     }
 
     private void push(LenientRawQueue queue, String s) throws IOException {
-        queue.push(new Buffer(s.getBytes()));
+        queue.push(new Buffer(s.getBytes(StandardCharsets.UTF_8)));
     }
 
     private String pop(LenientRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.pop(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 
     private String peek(LenientRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.peek(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 
 }

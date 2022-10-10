@@ -4,6 +4,8 @@ import com.google.common.base.Strings;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,7 +54,7 @@ public class ArrayRawQueueTest {
     public void testClear() throws Exception {
         ArrayRawQueue queue = new ArrayRawQueue(200);
         for (int i = 0; i < 20; i++) {
-            String s = "test" + String.format("%02x", i);
+            String s = "test" + String.format((Locale) null, "%02x", i);
             push(queue, s);
         }
         assertThat(queue.count()).isEqualTo(20);
@@ -72,11 +74,11 @@ public class ArrayRawQueueTest {
         ArrayRawQueue queue = new ArrayRawQueue(200);
 
         for (int i = 0; i < 20; i++) {
-            String s = "test" + String.format("%02x", i);
+            String s = "test" + String.format((Locale) null, "%02x", i);
             push(queue, s);
         }
         for (int i = 0; i < 20; i++) {
-            String s = "test" + String.format("%02x", i);
+            String s = "test" + String.format((Locale) null, "%02x", i);
             assertThat(pop(queue)).isEqualTo(s);
         }
     }
@@ -121,18 +123,18 @@ public class ArrayRawQueueTest {
     }
 
     private void push(ArrayRawQueue queue, String s) throws IOException {
-        queue.push(new Buffer(s.getBytes()));
+        queue.push(new Buffer(s.getBytes(StandardCharsets.UTF_8)));
     }
 
     private String pop(ArrayRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.pop(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 
     private String peek(ArrayRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.peek(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 }

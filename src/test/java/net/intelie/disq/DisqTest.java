@@ -11,6 +11,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -272,14 +273,14 @@ public class DisqTest {
     private static class StringSerializer implements Serializer<String>, SerializerFactory<String> {
         @Override
         public void serialize(Buffer buffer, String obj) throws IOException {
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(buffer.write()));
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(buffer.write(), StandardCharsets.UTF_8));
             writer.write(obj);
             writer.flush();
         }
 
         @Override
         public String deserialize(Buffer buffer) throws IOException {
-            return CharStreams.toString(new InputStreamReader(buffer.read()));
+            return CharStreams.toString(new InputStreamReader(buffer.read(), StandardCharsets.UTF_8));
         }
 
         @Override

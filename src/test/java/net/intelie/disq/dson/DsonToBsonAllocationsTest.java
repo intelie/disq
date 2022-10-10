@@ -1,16 +1,15 @@
 package net.intelie.disq.dson;
 
 import net.intelie.disq.Buffer;
+import net.intelie.disq.SuppressForbidden;
 import net.intelie.introspective.ThreadResources;
-import org.bson.BsonBinaryReader;
-import org.bson.BsonBinaryWriter;
-import org.bson.codecs.*;
-import org.bson.io.BasicOutputBuffer;
+import org.bson.codecs.IterableCodecProvider;
+import org.bson.codecs.MapCodec;
+import org.bson.codecs.MapCodecProvider;
+import org.bson.codecs.ValueCodecProvider;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -55,7 +54,11 @@ public class DsonToBsonAllocationsTest {
 
         assertThat(result / (double) realTest).isLessThan(1);
 
-        System.out.println("ALLOCATIONS: " + result);
+        printStats(result);
     }
 
+    @SuppressForbidden
+    private static void printStats(long result) {
+        System.out.println("ALLOCATIONS: " + result);
+    }
 }

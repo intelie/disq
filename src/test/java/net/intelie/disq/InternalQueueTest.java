@@ -228,7 +228,6 @@ public class InternalQueueTest {
                 runThrowable();
             } catch (Throwable throwable) {
                 t = throwable;
-                t.printStackTrace();
             }
         }
 

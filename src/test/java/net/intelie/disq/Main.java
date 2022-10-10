@@ -5,13 +5,19 @@ import net.intelie.disq.dson.DsonBinaryRead;
 import net.intelie.disq.dson.DsonSerializer;
 import net.intelie.introspective.ThreadResources;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
 
 public class Main {
+    @SuppressForbidden
     public static void main(String[] args) throws IOException {
         try (DiskQueueReader queue = new DiskQueueReader(Paths.get("/home/juanplopes/Downloads/queue/hess"))) {
             System.out.println(queue.count());
@@ -19,7 +25,7 @@ public class Main {
             Buffer buffer = new Buffer();
             Serializer<Object> serializer = new StorageEventSerializer().create();
 
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter("/home/juanplopes/Downloads/queue.txt"))) {
+            try (BufferedWriter writer = Files.newBufferedWriter(Paths.get("/home/juanplopes/Downloads/queue.txt"))) {
                 while (queue.moveNext(buffer)) {
                     Map<?, ?> event = (Map<?, ?>) serializer.deserialize(buffer);
                     writer.write(event.toString());
@@ -54,6 +60,7 @@ public class Main {
 
     }
 
+    @SuppressForbidden
     private static void benchmark(Map<?, ?> map2, SerializerFactory<Object> serializer) throws IOException {
         try (PersistentQueue<Object> q = Disq.builder()
                 .setFlushOnPop(false)
@@ -79,16 +86,16 @@ public class Main {
             double readTime = (System.nanoTime() - start) / 1e9 - writeTime;
 
             System.out.println(serializer.getClass().getSimpleName());
-            System.out.printf("total: %d objects, %.3fMB\n", count, bytes / (double) (1 << 20));
-            System.out.printf("write: %.3fs, %.3f obj/s, %.3fMB/s\n",
+            System.out.printf((Locale) null, "total: %d objects, %.3fMB\n", count, bytes / (double) (1 << 20));
+            System.out.printf((Locale) null, "write: %.3fs, %.3f obj/s, %.3fMB/s\n",
                     writeTime,
                     count / writeTime,
                     bytes / writeTime / (double) (1 << 20));
-            System.out.printf("read : %.3fs, %.3f obj/s, %.3fMB/s\n",
+            System.out.printf((Locale) null, "read : %.3fs, %.3f obj/s, %.3fMB/s\n",
                     readTime,
                     count / readTime,
                     bytes / readTime / (double) (1 << 20));
-            System.out.printf("alloc: %.3f bytes/obj\n",
+            System.out.printf((Locale) null, "alloc: %.3f bytes/obj\n",
                     (ThreadResources.allocatedBytes(Thread.currentThread()) - memStart) / (double) count);
             System.out.println();
         }

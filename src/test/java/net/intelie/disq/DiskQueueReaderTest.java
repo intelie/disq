@@ -73,6 +73,6 @@ public class DiskQueueReaderTest {
     private String pop(DiskRawQueue queue) throws IOException {
         Buffer buffer = new Buffer();
         if (!queue.pop(buffer)) return null;
-        return new String(buffer.buf(), 0, buffer.count());
+        return new String(buffer.buf(), 0, buffer.count(), StandardCharsets.UTF_8);
     }
 }

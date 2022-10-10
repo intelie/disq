@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 public class DiskRawQueue implements RawQueue {
     public static final int FAILED_READ_THRESHOLD = 64;
@@ -331,11 +332,11 @@ public class DiskRawQueue implements RawQueue {
     }
 
     private Path makeDataPath(int state) {
-        return directory.resolve(String.format("data%02x", state));
+        return directory.resolve(String.format((Locale) null, "data%02x", state));
     }
 
     private Path makeCorruptedPath(int state) {
-        return directory.resolve(String.format("data%02x.%d.corrupted", state, System.currentTimeMillis()));
+        return directory.resolve(String.format((Locale) null, "data%02x.%d.corrupted", state, System.currentTimeMillis()));
     }
 
     private DataFileReader openReader() throws IOException {

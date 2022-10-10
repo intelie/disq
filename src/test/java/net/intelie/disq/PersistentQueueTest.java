@@ -214,7 +214,6 @@ public class PersistentQueueTest {
                 runThrowable();
             } catch (Throwable throwable) {
                 t = throwable;
-                t.printStackTrace();
             }
         }
 
