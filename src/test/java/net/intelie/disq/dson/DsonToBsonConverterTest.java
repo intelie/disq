@@ -148,7 +148,10 @@ public class DsonToBsonConverterTest {
             assertThat(out.toArray()).isEqualTo(control);
         Map<?, ?> decoded = codec.decode(new BsonBinaryReader(ByteBuffer.wrap(out.buf(), 0, out.count())), DecoderContext.builder().build());
 
-        assertThat(decoded).isEqualTo(expected);
+        // Since version 4.8.0 of org.mongodb:bson, documents are decoded as Document, which has a broken equals().
+        // The contract for Map.equals() says it should accept any Map, but Document accepts only another Document.
+        // Doing an inverted equality test makes it use the equals() from LinkedHashMap, which works correctly.
+        assertThat(expected).isEqualTo(decoded);
     }
 
     private byte[] makeControl(Map<String, Object> input) {
