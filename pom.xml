@@ -65,7 +65,7 @@
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>bson</artifactId>
-            <version>4.10.2</version>
+            <version>4.11.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -100,7 +100,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.1.2-jre</version>
+            <version>32.1.3-jre</version>
             <scope>test</scope>
         </dependency>
 
