@@ -19,10 +19,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 
 public class DsonToBsonConverterTest {
-    private final MapCodec codec = new MapCodec(fromProviders(asList(
+    @SuppressWarnings("rawtypes")
+    private final Codec<Map> codec = fromProviders(asList(
             new ValueCodecProvider(),
             new IterableCodecProvider(),
-            new MapCodecProvider())));
+            new MapCodecProvider())).get(Map.class);
 
     @Test
     public void testEmptyStream() {
